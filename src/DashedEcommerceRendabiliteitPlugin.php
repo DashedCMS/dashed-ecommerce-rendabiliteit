@@ -35,7 +35,7 @@ class DashedEcommerceRendabiliteitPlugin implements Plugin
                 KostentariefResource::class,
                 VasteLastResource::class,
                 VerzendfactuurResource::class,
-                InkoopfactuurResource::class,
+                ...(config('dashed-ecommerce-rendabiliteit.inkoopfacturen', true) ? [InkoopfactuurResource::class] : []),
             ]);
     }
 

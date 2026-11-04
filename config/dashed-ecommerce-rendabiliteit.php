@@ -15,6 +15,9 @@ return [
     /* Bearer-token van de advertentie-API (/api/advertentie-uitgaven); leeg = API dicht. */
     'api_token' => env('ADVERTENTIE_API_TOKEN'),
 
+    /* Inkoopfacturen-resource registreren; false voor shops waar de kostprijs niet uit purchase_price komt. */
+    'inkoopfacturen' => true,
+
     /* Voorvoegsel van de PDF-bestandsnaam; leeg = de slug van app.name. */
     'bestandsprefix' => null,
 ];

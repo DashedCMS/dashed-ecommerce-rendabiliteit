@@ -7,6 +7,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Dashed\DashedEcommerceCore\Models\Product;
 use Dashed\DashedEcommerceCore\Models\ProductGroup;
 use Dashed\DashedEcommerceRendabiliteit\Support\Maatlabel;
@@ -533,6 +534,11 @@ class Aandachtspunten
     /** Bol-orders (geen creditorders) zonder commissie, per maand: die tellen als € 0. */
     private function bolZonderCommissie(Carbon $start, Carbon $eind): array
     {
+        // Zonder dashed-ecommerce-bol bestaat de kolom niet.
+        if (! Schema::hasColumn('dashed__orders', 'bol_order_commission')) {
+            return [];
+        }
+
         return DB::table('dashed__orders')
             ->whereIn('status', ['paid', 'return'])
             ->whereBetween('created_at', [$start, $eind])

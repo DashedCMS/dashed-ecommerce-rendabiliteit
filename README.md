@@ -35,7 +35,7 @@ ADVERTENTIE_API_TOKEN=
 `POST /api/advertentie-uitgaven` met `{"rows": [{"datum": "2026-10-29", "platform": "meta", "bedrag": 24.10}]}` en
 `GET /api/advertentie-uitgaven?van=&tot=`, met `Authorization: Bearer <token>`.
 
-Config (`config/dashed-ecommerce-rendabiliteit.php`): `vervoerders`, `api_token`, `bestandsprefix`.
+Config (`config/dashed-ecommerce-rendabiliteit.php`): `vervoerders`, `api_token`, `bestandsprefix`, `inkoopfacturen` (standaard `true`; `false` registreert de Inkoopfacturen-resource niet, voor shops waar de kostprijs niet uit `purchase_price` komt).
 
 De migratie maakt de tabellen aan als ze er nog niet zijn en vult geen tarieven: vul betaal-, verzend- en verpakkingskosten in
 onder Rendabiliteit → Tarieven (zonder tarief rekent het rapport met €0 en toont een waarschuwing).

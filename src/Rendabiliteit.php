@@ -98,6 +98,8 @@ class Rendabiliteit
      */
     public function maatsleutelsVoor(iterable $producten): array
     {
+        $producten = collect($producten);
+
         if ($this->maatsleutels) {
             $sleutels = [];
             foreach (($this->maatsleutels)($producten) as $id => $sleutel) {
