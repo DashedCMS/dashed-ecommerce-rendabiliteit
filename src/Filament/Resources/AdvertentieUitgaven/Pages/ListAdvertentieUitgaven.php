@@ -14,6 +14,7 @@ class ListAdvertentieUitgaven extends ListRecords
     {
         return [
             AdvertentieUitgaveResource::importActie(),
+            AdvertentieUitgaveResource::bestandActie(),
             CreateAction::make(),
         ];
     }

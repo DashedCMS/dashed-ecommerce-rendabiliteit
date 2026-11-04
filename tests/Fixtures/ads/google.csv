@@ -1,0 +1,9 @@
+# nog te controleren tegen een echte export (standaard kopregels, Nederlands of Engels)
+Dagrapport
+1 september 2026 - 3 september 2026
+Dag,Campagne,Valuta,Kosten
+2026-09-01,Zoeken merk,EUR,"€ 1.234,56"
+2026-09-01,Shopping,EUR,"€ 100,00"
+2026-09-02,Zoeken merk,EUR,"€ 20,50"
+2026-09-03,Zoeken merk,EUR,"€ 18,00"
+Totaal: Account,--,--,"€ 1.373,06"

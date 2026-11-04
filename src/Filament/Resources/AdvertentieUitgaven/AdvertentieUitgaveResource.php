@@ -12,8 +12,13 @@ use Filament\Actions\EditAction;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\Width;
 use Filament\Actions\DeleteAction;
+use Illuminate\Support\Str;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\FileUpload;
 use Filament\Schemas\Components\View;
 use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
@@ -30,6 +35,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Tables\Columns\Summarizers\Summarizer;
 use Dashed\DashedEcommerceRendabiliteit\Models\AdvertentieUitgave;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\AdvertentieImport;
+use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\AdvertentieExportLezer;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\AdvertentiePlatformen;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\AdvertentieUitgaven\Pages\EditAdvertentieUitgave;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\AdvertentieUitgaven\Pages\ListAdvertentieUitgaven;
@@ -202,6 +208,133 @@ class AdvertentieUitgaveResource extends Resource
                     ->body("{$telling['nieuw']} nieuw, {$telling['bijgewerkt']} bijgewerkt, {$telling['gelijk']} ongewijzigd, {$telling['fout']} overgeslagen (fout).")
                     ->send();
             });
+    }
+
+    /**
+     * Kopactie: een export van Google Ads, Meta of Bol (CSV, XLSX of PDF) → Inlezen → Controleren
+     * (voorbeeld, niets opgeslagen) → Importeren. Herkende formaten gaan zonder AI, de rest naar Claude.
+     */
+    public static function bestandActie(): Action
+    {
+        return Action::make('bestandInlezen')
+            ->label('Bestand inlezen')
+            ->icon('heroicon-o-document-arrow-up')
+            ->color('gray')
+            ->modalHeading('Advertentie-uitgaven uit een exportbestand')
+            ->modalDescription('Upload een export van Google Ads, Meta Ads Manager of Bol-advertenties (CSV, XLSX of PDF). Bedragen worden gelezen als excl. btw. Na het inlezen controleer je de regels; pas bij Importeren wordt er iets opgeslagen.')
+            ->modalWidth(Width::FourExtraLarge)
+            ->modalSubmitActionLabel('Importeren')
+            ->schema([
+                FileUpload::make('bestand')
+                    ->label('Exportbestand')
+                    ->disk('local')
+                    ->directory(AdvertentieExportLezer::MAP)
+                    ->visibility('private')
+                    ->storeFiles(false)
+                    ->acceptedFileTypes([
+                        'text/csv',
+                        'text/plain',
+                        'application/csv',
+                        'application/pdf',
+                        'application/vnd.ms-excel',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    ])
+                    ->maxSize(10240)
+                    ->downloadable(false)
+                    ->openable(false),
+                Select::make('platform')
+                    ->label('Platform')
+                    ->options(array_combine(AdvertentiePlatformen::ALLE, AdvertentiePlatformen::ALLE))
+                    ->placeholder('Uit het bestand')
+                    ->helperText('Alleen nodig als het bestand zelf niet duidelijk maakt om welk platform het gaat.'),
+                Actions::make([
+                    Action::make('inlezen')
+                        ->label('Inlezen')
+                        ->color('gray')
+                        ->icon('heroicon-o-document-magnifying-glass')
+                        ->action(function (Get $get, Set $set) {
+                            $uitkomst = self::leesBestand($get('bestand'), $get('platform'));
+
+                            if (! $uitkomst['gelukt']) {
+                                Notification::make()->danger()->title('Inlezen mislukt')->body($uitkomst['fout'])->send();
+
+                                return;
+                            }
+
+                            $set('tekst', $uitkomst['tekst']);
+                            $set('gecontroleerd', $uitkomst['tekst']);
+
+                            if ($uitkomst['bron'] === 'claude') {
+                                Notification::make()->warning()->title('Uitgelezen met Claude')->body('Dit formaat herkenden we niet zelf; controleer de regels goed.')->send();
+                            }
+                        }),
+                ])->key('inleesActies'),
+                Textarea::make('tekst')
+                    ->label('Ingelezen regels (datum;platform;bedrag)')
+                    ->rows(8)
+                    ->live(onBlur: true)
+                    ->hint(fn (Get $get) => self::isOngecontroleerdeWijziging($get) ? 'Tekst gewijzigd, klik opnieuw op Controleren' : null)
+                    ->hintColor('warning')
+                    ->required(),
+                Hidden::make('gecontroleerd'),
+                Actions::make([
+                    Action::make('controleren')
+                        ->label('Controleren')
+                        ->color('gray')
+                        ->icon('heroicon-o-magnifying-glass')
+                        ->action(fn (Get $get, Set $set) => $set('gecontroleerd', (string) $get('tekst'))),
+                ])->key('controleActies'),
+                View::make('dashed-ecommerce-rendabiliteit::filament.resources.advertentie-uitgaven.import-voorbeeld')
+                    ->viewData(fn (Get $get) => ['regels' => app(AdvertentieImport::class)->voorbeeld((string) $get('gecontroleerd'))])
+                    ->visible(fn (Get $get) => filled($get('gecontroleerd')) && ! self::isOngecontroleerdeWijziging($get)),
+            ])
+            ->action(fn (array $data, Action $action) => self::slaImportOp($data, $action));
+    }
+
+    /**
+     * @return array{gelukt: bool, fout: ?string, tekst: string, bron: ?string}
+     */
+    public static function leesBestand(mixed $bestand, ?string $platform): array
+    {
+        $bestand = is_array($bestand) ? (reset($bestand) ?: null) : $bestand;
+
+        if ($bestand instanceof TemporaryUploadedFile) {
+            $extensie = strtolower($bestand->getClientOriginalExtension() ?: $bestand->extension());
+            $pad = $bestand->storeAs(AdvertentieExportLezer::MAP, Str::uuid().'.'.$extensie, 'local');
+        } elseif (is_string($bestand) && $bestand !== '') {
+            $pad = $bestand;
+        } else {
+            return ['gelukt' => false, 'fout' => 'Kies eerst een bestand.', 'tekst' => '', 'bron' => null];
+        }
+
+        try {
+            return app(AdvertentieExportLezer::class)->lees((string) $pad, $platform);
+        } finally {
+            if ($bestand instanceof TemporaryUploadedFile && $pad) {
+                Storage::disk('local')->delete($pad);
+            }
+        }
+    }
+
+    private static function slaImportOp(array $data, Action $action): void
+    {
+        if (blank($data['gecontroleerd'] ?? null) || $data['gecontroleerd'] !== $data['tekst']) {
+            Notification::make()
+                ->warning()
+                ->title('Klik eerst op Controleren')
+                ->body('De regels zijn nog niet (of na een wijziging niet opnieuw) gecontroleerd.')
+                ->send();
+
+            $action->halt();
+        }
+
+        $telling = app(AdvertentieImport::class)->importeer($data['tekst']);
+
+        Notification::make()
+            ->success()
+            ->title('Advertentie-uitgaven geïmporteerd')
+            ->body("{$telling['nieuw']} nieuw, {$telling['bijgewerkt']} bijgewerkt, {$telling['gelijk']} ongewijzigd, {$telling['fout']} overgeslagen (fout).")
+            ->send();
     }
 
     /** Tekst gewijzigd nadat op Controleren is geklikt: het voorbeeld hoort dan niet meer bij de tekst. */

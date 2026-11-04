@@ -161,7 +161,7 @@ class InkoopfactuurLezer
     }
 
     /** Alle tabbladen van een XLSX als CSV-tekst (OpenSpout, meegeleverd met Filament). */
-    private function xlsxAlsCsv(string $pad): string
+    public function xlsxAlsCsv(string $pad): string
     {
         $reader = new Reader();
         $reader->open($pad);
