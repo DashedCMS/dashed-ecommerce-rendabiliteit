@@ -13,6 +13,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\SelectFilter;
 use Dashed\DashedEcommerceCore\Models\Product;
+use Dashed\DashedEcommerceCore\Filament\Resources\ProductResource;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Dashed\DashedEcommerceRendabiliteit\Instellingen\MargeInstellingen;
 use Dashed\DashedEcommerceRendabiliteit\Services\Kostprijzen\Prijsadvies;
@@ -92,6 +93,8 @@ class MargesPage extends Page implements HasTable
                     ->sortable(query: fn ($query, string $direction) => $query->orderByRaw("JSON_UNQUOTE(JSON_EXTRACT(dashed__products.name, '$.nl')) {$direction}")),
                 TextColumn::make('purchase_price')->label('Kostprijs')
                     ->formatStateUsing(fn ($state) => (float) $state > 0 ? '€ '.number_format((float) $state, 2, ',', '.') : 'onbekend')
+                    // Onbekend (leeg of 0) linkt naar het product in het CMS, waar de inkoopprijs ingevuld kan worden.
+                    ->url(fn (Product $r) => (float) $r->purchase_price > 0 ? null : ProductResource::getUrl('edit', ['record' => $r]))
                     ->sortable(),
                 TextColumn::make('advies')->label('Adviesprijs')
                     ->state(function (Product $r) use ($bron, $doelmarge) {
