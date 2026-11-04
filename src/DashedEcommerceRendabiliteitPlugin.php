@@ -4,6 +4,13 @@ namespace Dashed\DashedEcommerceRendabiliteit;
 
 use Filament\Panel;
 use Filament\Contracts\Plugin;
+use Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Kostprijzen\MargesPage;
+use Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Rendabiliteit\AdvertentiesPage;
+use Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Rendabiliteit\RendabiliteitPage;
+use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\VasteLasten\VasteLastResource;
+use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\Kostentarieven\KostentariefResource;
+use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\Verzendfacturen\VerzendfactuurResource;
+use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\AdvertentieUitgaven\AdvertentieUitgaveResource;
 
 class DashedEcommerceRendabiliteitPlugin implements Plugin
 {
@@ -14,6 +21,20 @@ class DashedEcommerceRendabiliteitPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
+        // De widgets van de Advertenties-pagina worden bewust niet geregistreerd:
+        // ze horen alleen op die pagina, niet op het hoofddashboard.
+        $panel
+            ->pages([
+                RendabiliteitPage::class,
+                AdvertentiesPage::class,
+                MargesPage::class,
+            ])
+            ->resources([
+                AdvertentieUitgaveResource::class,
+                KostentariefResource::class,
+                VasteLastResource::class,
+                VerzendfactuurResource::class,
+            ]);
     }
 
     public function boot(Panel $panel): void

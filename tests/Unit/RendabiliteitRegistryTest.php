@@ -54,4 +54,14 @@ class RendabiliteitRegistryTest extends TestCase
 
         $this->assertSame([['a' => 2], ['b' => 1], ['c' => 2]], $r->signalen(new Collection([1, 2])));
     }
+
+    public function test_maatsleutels_in_een_keer_vullen_ontbrekende_producten_met_een_lege_sleutel(): void
+    {
+        $r = new Rendabiliteit();
+        $r->maatsleutels(fn (iterable $producten) => ['1' => '10,20']);
+
+        $producten = [(object) ['id' => 1], (object) ['id' => 2]];
+
+        $this->assertSame([1 => '10,20', 2 => ''], $r->maatsleutelsVoor($producten));
+    }
 }

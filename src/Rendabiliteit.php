@@ -20,6 +20,8 @@ class Rendabiliteit
 
     private ?Closure $maatsleutel = null;
 
+    private ?Closure $maatsleutels = null;
+
     /** @var list<Closure> */
     private array $signalen = [];
 
@@ -52,7 +54,13 @@ class Rendabiliteit
         return array_values(array_unique($ids));
     }
 
-    /** @param Closure(int, string): ?array $closure */
+    /**
+     * De link bij "mist kostprijs" per groep × maatsleutel. Het resultaat is
+     * ['url' => string, 'label' => string] met optioneel 'reden' (waarom de
+     * kostprijs ontbreekt) en 'maat' (leesbare naam van de maat).
+     *
+     * @param Closure(int, string): ?array $closure
+     */
     public function kostprijsLink(Closure $closure): void
     {
         $this->link = $closure;
@@ -74,7 +82,49 @@ class Rendabiliteit
         return $this->maatsleutel ? (string) ($this->maatsleutel)($product) : '';
     }
 
-    /** @param Closure(Collection): list<array> $closure */
+    /**
+     * Snellere variant van maatsleutel(): sleutels voor veel producten tegelijk.
+     *
+     * @param  Closure(iterable<Product>): array<int, string>  $closure  product-id → sleutel
+     */
+    public function maatsleutels(Closure $closure): void
+    {
+        $this->maatsleutels = $closure;
+    }
+
+    /**
+     * @param  iterable<Product>  $producten
+     * @return array<int, string> product-id → maatsleutel ('' = één maat)
+     */
+    public function maatsleutelsVoor(iterable $producten): array
+    {
+        if ($this->maatsleutels) {
+            $sleutels = [];
+            foreach (($this->maatsleutels)($producten) as $id => $sleutel) {
+                $sleutels[(int) $id] = (string) $sleutel;
+            }
+
+            foreach ($producten as $product) {
+                $sleutels[(int) $product->id] ??= '';
+            }
+
+            return $sleutels;
+        }
+
+        $sleutels = [];
+        foreach ($producten as $product) {
+            $sleutels[(int) $product->id] = $this->maatsleutelVoor($product);
+        }
+
+        return $sleutels;
+    }
+
+    /**
+     * Signalen voor de Marges-pagina. Bekende soort: ['soort' => 'verwacht_duurder',
+     * 'product_id' => int] (zo'n variant telt niet als prijsafwijking).
+     *
+     * @param Closure(Collection): list<array> $closure
+     */
     public function extraSignalen(Closure $closure): void
     {
         $this->signalen[] = $closure;
