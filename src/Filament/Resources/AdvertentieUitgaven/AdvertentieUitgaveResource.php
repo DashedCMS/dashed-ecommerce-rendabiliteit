@@ -301,8 +301,6 @@ class AdvertentieUitgaveResource extends Resource
         if ($bestand instanceof TemporaryUploadedFile) {
             $extensie = strtolower($bestand->getClientOriginalExtension() ?: $bestand->extension());
             $pad = $bestand->storeAs(AdvertentieExportLezer::MAP, Str::uuid().'.'.$extensie, 'local');
-        } elseif (is_string($bestand) && $bestand !== '') {
-            $pad = $bestand;
         } else {
             return ['gelukt' => false, 'fout' => 'Kies eerst een bestand.', 'tekst' => '', 'bron' => null];
         }

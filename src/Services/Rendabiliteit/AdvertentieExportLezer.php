@@ -158,12 +158,14 @@ class AdvertentieExportLezer
     /** @param  list<string>  $cellen */
     private function kopregel(array $cellen): ?array
     {
-        $datum = $kosten = null;
+        $datum = $kosten = $einde = null;
 
         foreach ($cellen as $index => $cel) {
             $naam = trim((string) preg_replace('/\(.*?\)/u', '', mb_strtolower(trim($cel))));
 
-            if ($datum === null && in_array($naam, self::DATUM_KOLOMMEN, true)) {
+            if (in_array($naam, ['reporting ends', 'einde rapportage'], true)) {
+                $einde = $index;
+            } elseif ($datum === null && in_array($naam, self::DATUM_KOLOMMEN, true)) {
                 $datum = ['index' => $index, 'naam' => $naam];
             } elseif ($kosten === null && in_array($naam, self::KOSTEN_KOLOMMEN, true)) {
                 $kosten = ['index' => $index, 'naam' => $naam];
@@ -181,14 +183,14 @@ class AdvertentieExportLezer
             default => null,
         };
 
-        return ['datum' => $datum['index'], 'kosten' => $kosten['index'], 'platform' => $platform];
+        return ['datum' => $datum['index'], 'kosten' => $kosten['index'], 'platform' => $platform, 'einde' => $einde];
     }
 
     /**
      * @param  list<string>  $regels
-     * @param  array{datum: int, kosten: int, platform: ?string}  $kop
+     * @param  array{datum: int, kosten: int, platform: ?string, einde: ?int}  $kop
      */
-    private function leesRijen(array $regels, string $scheiding, array $kop, string $platform): string
+    private function leesRijen(array $regels, string $scheiding, array $kop, string $platform): ?string
     {
         $groepen = [];
 
@@ -206,6 +208,12 @@ class AdvertentieExportLezer
                 continue;
             }
 
+            // Een rij die meer dan één dag beslaat (begin ≠ einde) is niet per dag te lezen: naar Claude.
+            $eindeTekst = $kop['einde'] === null ? '' : trim((string) ($cellen[$kop['einde']] ?? ''));
+            if ($eindeTekst !== '' && $this->datum($eindeTekst) !== $this->datum($datumTekst)) {
+                return null;
+            }
+
             $groepen[$this->datum($datumTekst)][] = $kostenTekst;
         }
 
@@ -215,10 +223,9 @@ class AdvertentieExportLezer
             $waarden = array_map(fn (string $b) => $this->getal($b), $bedragen);
 
             if (in_array(null, $waarden, true)) {
-                // Onduidelijk bedrag: ongewijzigd doorgeven, AdvertentieImport meldt het als fout.
-                foreach ($bedragen as $bedrag) {
-                    $uit[] = "{$datum};{$platform};{$bedrag}";
-                }
+                // Onduidelijk bedrag: één regel met de ruwe waarde, die AdvertentieImport als fout meldt.
+                // Er wordt niets van die dag opgeslagen tot de gebruiker het bedrag corrigeert.
+                $uit[] = "{$datum};{$platform};".$bedragen[array_search(null, $waarden, true)];
 
                 continue;
             }

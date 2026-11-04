@@ -72,4 +72,21 @@ class AdvertentieExportLezerTest extends TestCase
         // Wel een datum en kosten, maar geen herkenbaar platform en niet gekozen.
         $this->assertNull($lezer->naarRegels("Date,Spend\n2026-09-01,5\n", null));
     }
+
+    public function test_dag_met_goed_en_onduidelijk_bedrag_geeft_een_enkele_foutregel(): void
+    {
+        $csv = "Dag,Campagne,Kosten\n2026-09-01,A,10.00\n2026-09-01,B,1.234\n2026-09-02,A,5.00\n";
+
+        $this->assertSame(
+            "2026-09-01;Google;1.234\n2026-09-02;Google;5,00",
+            (new AdvertentieExportLezer())->naarRegels($csv, null),
+        );
+    }
+
+    public function test_meta_rij_over_meerdere_dagen_geeft_null(): void
+    {
+        $csv = "Reporting starts,Reporting ends,Amount spent (EUR)\n2026-09-01,2026-09-07,50.00\n";
+
+        $this->assertNull((new AdvertentieExportLezer())->naarRegels($csv, null));
+    }
 }
