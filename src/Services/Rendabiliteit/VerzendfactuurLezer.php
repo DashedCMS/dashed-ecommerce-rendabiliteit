@@ -4,12 +4,11 @@ namespace Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit;
 
 use Throwable;
 use Illuminate\Support\Str;
-use Dashed\DashedAi\AiManager;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Dashed\DashedEcommerceRendabiliteit\Support\Vervoerders;
 use Dashed\DashedEcommerceRendabiliteit\Models\Verzendfactuur;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Dashed\DashedEcommerceRendabiliteit\Services\Concerns\LeestMetClaude;
 
 /**
  * Leest een verzendfactuur (PDF) uit met Claude via de dashed-ai-provider
@@ -19,6 +18,8 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
  */
 class VerzendfactuurLezer
 {
+    use LeestMetClaude;
+
     public const MODEL = 'claude-opus-5';
 
     /** Ruim: Opus 5 denkt standaard na en dat telt mee voor max_tokens (de provider kan thinking/effort niet doorgeven). */
@@ -78,20 +79,16 @@ class VerzendfactuurLezer
     /** Relatief pad binnen verzendfacturen/, zonder '..', backslashes of schema. */
     public static function isVertrouwdPad(string $pad): bool
     {
-        return str_starts_with($pad, self::MAP.'/')
-            && ! str_contains($pad, '..')
-            && ! str_contains($pad, '\\')
-            && ! str_contains($pad, ':')
-            && ! str_contains($pad, "\0");
+        return self::padBinnen($pad, self::MAP);
     }
 
     /** @param callable(): ?string $inhoud levert de PDF-bytes, of null als het bestand ontbreekt */
     private function metClaude(callable $inhoud): array
     {
         try {
-            $provider = app(AiManager::class)->provider('claude');
+            $provider = $this->claudeProvider();
 
-            if (! $provider || ! $provider->isConnected()) {
+            if (! $provider) {
                 return $this->mislukt(self::GEEN_KOPPELING);
             }
 
@@ -125,18 +122,10 @@ class VerzendfactuurLezer
 
     private function verwerk(array $antwoord): array
     {
-        $stop = $antwoord['stop_reason'] ?? null;
-        if ($stop === 'refusal') {
-            return $this->mislukt('Claude weigerde deze factuur uit te lezen.');
+        [$tekst, $fout] = $this->tekstUitAntwoord($antwoord, 'deze factuur');
+        if ($fout !== null) {
+            return $this->mislukt($fout);
         }
-        if ($stop === 'max_tokens') {
-            return $this->mislukt('Het antwoord van Claude was afgekapt; probeer het opnieuw.');
-        }
-
-        $tekst = collect($antwoord['content'] ?? [])
-            ->where('type', 'text')
-            ->pluck('text')
-            ->implode("\n");
 
         $json = $this->haalJson($tekst);
         if ($json === null) {
@@ -144,31 +133,6 @@ class VerzendfactuurLezer
         }
 
         return $this->valideer($json);
-    }
-
-    /** JSON-object uit het antwoord, ook tussen ```json-hekken of met tekst eromheen. */
-    private function haalJson(string $tekst): ?array
-    {
-        $kandidaten = [trim($tekst)];
-
-        if (preg_match('/```(?:json)?\s*([\s\S]*?)```/i', $tekst, $hek)) {
-            $kandidaten[] = trim($hek[1]);
-        }
-
-        $begin = strpos($tekst, '{');
-        $eind = strrpos($tekst, '}');
-        if ($begin !== false && $eind !== false && $eind > $begin) {
-            $kandidaten[] = substr($tekst, $begin, $eind - $begin + 1);
-        }
-
-        foreach ($kandidaten as $kandidaat) {
-            $data = json_decode($kandidaat, true);
-            if (is_array($data) && ! array_is_list($data)) {
-                return $data;
-            }
-        }
-
-        return null;
     }
 
     private function valideer(array $json): array
@@ -272,44 +236,6 @@ class VerzendfactuurLezer
         }
 
         return Vervoerders::herken($waarde);
-    }
-
-    /** Geldige datum JJJJ-MM-DD of null (ongeldig → twijfel, ontbrekend → stil null). */
-    private function datum(mixed $waarde, string $label, array &$twijfel): ?string
-    {
-        if ($waarde === null || $waarde === '') {
-            return null;
-        }
-
-        if (is_string($waarde) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $waarde)) {
-            [$j, $m, $d] = array_map('intval', explode('-', $waarde));
-            if (checkdate($m, $d, $j) && $j >= 2000 && $j <= 2100) {
-                return Carbon::createFromDate($j, $m, $d)->toDateString();
-            }
-        }
-
-        $twijfel[] = $label.' ongeldig ("'.Str::limit(is_scalar($waarde) ? (string) $waarde : json_encode($waarde), 30).'").';
-
-        return null;
-    }
-
-    /** Getal uit een JSON-getal of een tekst met punt of komma als decimaalteken. */
-    private function getal(mixed $waarde): ?float
-    {
-        if (is_int($waarde) || is_float($waarde)) {
-            return (float) $waarde;
-        }
-
-        if (! is_string($waarde)) {
-            return null;
-        }
-
-        $tekst = str_replace(['€', ' '], '', trim($waarde));
-        if (preg_match('/^-?\d+,\d{1,2}$/', $tekst)) {
-            $tekst = str_replace(',', '.', $tekst);
-        }
-
-        return is_numeric($tekst) ? (float) $tekst : null;
     }
 
     private function mislukt(string $fout): array

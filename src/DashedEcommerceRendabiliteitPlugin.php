@@ -9,6 +9,7 @@ use Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Rendabiliteit\Advertentie
 use Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Rendabiliteit\RendabiliteitPage;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\VasteLasten\VasteLastResource;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\Kostentarieven\KostentariefResource;
+use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\Inkoopfacturen\InkoopfactuurResource;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\Verzendfacturen\VerzendfactuurResource;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\AdvertentieUitgaven\AdvertentieUitgaveResource;
 
@@ -34,6 +35,7 @@ class DashedEcommerceRendabiliteitPlugin implements Plugin
                 KostentariefResource::class,
                 VasteLastResource::class,
                 VerzendfactuurResource::class,
+                InkoopfactuurResource::class,
             ]);
     }
 
