@@ -1,16 +1,69 @@
 # Dashed Ecommerce Rendabiliteit
 
-Profitability reporting (revenue, costs, margin, advertising) for Dashed e-commerce shops.
+Rendabiliteit voor Dashed-webshops: omzet, kosten, marge en advertentie-uitgaven per maand, kanaal en productgroep.
 
-Shops extend the package through the `rendabiliteit()` registry: a cost source (`kostprijsBron`),
-excluded product groups, cost links, size keys and extra signals.
+Onderdelen (Filament, navigatiegroep Rendabiliteit, permissie `view_statistics`):
 
-## Registry
+- Rapport met aandachtspunten en PDF-export (per maand, periode, vergelijken, progressie)
+- Advertenties (dashboard, per week/maand/kwartaal/jaar), Advertentie-uitgaven (importeren, ads-exports inlezen) en een API
+- Tarieven (betaal-, verzend- en verpakkingskosten), Vaste lasten
+- Verzendfacturen (uitlezen met Claude, correctiefactor op de geschatte verzendkosten)
+- Marges en adviesprijs (Kostprijzen)
+- Inkoopfacturen: uitlezen (pdf, csv, xlsx), koppelen op EAN of SKU en toepassen als `purchase_price`
 
-- `kostprijsBron(KostprijsBron)`: where the cost price of a product comes from (default `InkoopprijsBron`, `purchase_price`).
-- `sluitGroepenUit(Closure(): array<int>)`: groups that do not count in cost price and margin; in "Aandachtspunten" their sold lines without cost form one info row.
-- `kostprijsLink(Closure(int $groepId, string $sleutel): ?array)`: `['url', 'label']`, optionally `reden` and `maat`, for "mist kostprijs".
-- `maatsleutel(Closure(Product): string)` or the faster `maatsleutels(Closure(iterable): array<int, string>)`: size key per product.
-- `extraSignalen(Closure(Collection): list<array>)`: e.g. `['soort' => 'verwacht_duurder', 'product_id' => 12]` for a variant that may be more expensive.
+## Installatie
 
-Carriers come from `config('dashed-ecommerce-rendabiliteit.vervoerders')`; only those whose label table exists take part.
+```bash
+composer require dashed/dashed-ecommerce-rendabiliteit
+php artisan migrate
+```
+
+Registreer de plugin in het Filament-panel:
+
+```php
+use Dashed\DashedEcommerceRendabiliteit\DashedEcommerceRendabiliteitPlugin;
+
+$panel->plugin(new DashedEcommerceRendabiliteitPlugin());
+```
+
+Zet in `.env` een token voor de advertentie-API (leeg = API dicht):
+
+```
+ADVERTENTIE_API_TOKEN=
+```
+
+`POST /api/advertentie-uitgaven` met `{"rows": [{"datum": "2026-10-29", "platform": "meta", "bedrag": 24.10}]}` en
+`GET /api/advertentie-uitgaven?van=&tot=`, met `Authorization: Bearer <token>`.
+
+Config (`config/dashed-ecommerce-rendabiliteit.php`): `vervoerders`, `api_token`, `bestandsprefix`.
+
+De migratie maakt de tabellen aan als ze er nog niet zijn en vult bij een nieuwe tarieventabel startwaarden
+(`Startwaarden::TARIEVEN`). Controleer of die bij jouw shop passen; alle tarieven zijn te wijzigen onder Rendabiliteit → Tarieven.
+
+## Standaardgedrag
+
+- Kostprijsbron: `InkoopprijsBron`; de kostprijs is `purchase_price` van het product, zonder `purchase_price` is er geen kostprijs (wel een waarschuwing in het rapport).
+- Maatsleutel: `''` (geen maatverdeling per productgroep).
+- Vervoerders komen uit de config; alleen vervoerders waarvan de labeltabel bestaat doen mee.
+- Geen uitgesloten productgroepen; cadeaubonnen tellen generiek niet mee.
+- Rapportcache: schema 12.
+
+## Haken (`rendabiliteit()`)
+
+Een shop breidt het package uit in een service provider (`boot`):
+
+```php
+rendabiliteit()->kostprijsBron(KostprijsBron $bron);                          // waar de kostprijs vandaan komt
+rendabiliteit()->sluitGroepenUit(Closure(): array<int>);                       // groep-id's die niet meetellen in kostprijs en marge
+rendabiliteit()->kostprijsLink(Closure(int $groepId, string $sleutel): ?array); // ['url', 'label'], optioneel 'reden' en 'maat'
+rendabiliteit()->maatsleutel(Closure(Product): string);                        // maatsleutel per product
+rendabiliteit()->maatsleutels(Closure(iterable): array<int, string>);          // idem in batch (sneller)
+rendabiliteit()->extraSignalen(Closure(Collection): list<array>);              // bv. ['soort' => 'verwacht_duurder', 'product_id' => 12]
+```
+
+`KostprijsBron` (`Contracts\KostprijsBron`) levert per product een `Kostprijs\Kostprijs` (`totaal` en `opbouw`) of `null`.
+
+Voorbeeld: Lovora (`app/Providers/RendabiliteitServiceProvider.php`) registreert een `PrintprofielBron` (kostprijs uit gram,
+printtijd en handwerk, via een scoped `Kostprijsberekenaar`), de uitgesloten groepen (outlet, wenskaart, cadeaubon),
+een `kostprijsLink` naar het printprofiel, een maatsleutel uit de variantfilters en het dual-color signaal.
+Wie na een wijziging aan de bron de rapporten wil verversen, roept `RendabiliteitCache::wis()` aan.
