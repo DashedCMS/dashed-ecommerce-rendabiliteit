@@ -79,6 +79,13 @@ class Inkoopfactuur extends Model
             ->exists();
     }
 
+    /** Al (deels) toegepast: de regels liggen dan vast en worden niet opnieuw uitgelezen. */
+    public function isToegepast(): bool
+    {
+        return $this->status === self::STATUS_VERWERKT
+            || ($this->exists && $this->regels()->whereNotNull('toegepast_at')->exists());
+    }
+
     public function regels(): HasMany
     {
         return $this->hasMany(InkoopfactuurRegel::class, 'inkoopfactuur_id');

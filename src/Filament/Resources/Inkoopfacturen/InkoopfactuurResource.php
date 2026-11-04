@@ -114,8 +114,10 @@ class InkoopfactuurResource extends Resource
                         Action::make('uitlezen')
                             ->label('Uitlezen met Claude')
                             ->icon('heroicon-o-sparkles')
-                            ->visible(fn (Get $get) => filled($get('bestand')))
-                            ->action(fn (Get $get, Set $set) => self::leesUit($get, $set)),
+                            // Een toegepaste factuur opnieuw uitlezen zou de regels (en hun
+                            // toegepast_at) vervangen en een oude prijs opnieuw laten toepassen.
+                            ->visible(fn (Get $get, ?Inkoopfactuur $record) => filled($get('bestand')) && ! $record?->isToegepast())
+                            ->action(fn (Get $get, Set $set, ?Inkoopfactuur $record) => self::leesUit($get, $set, $record)),
                     ])->key('uitleesActies'),
                     Hidden::make('twijfel')->dehydrated(false),
                     Callout::make('Controleer deze velden')
@@ -188,6 +190,7 @@ class InkoopfactuurResource extends Resource
                 ->getSearchResultsUsing(fn (string $search) => self::zoekProducten($search))
                 ->getOptionLabelUsing(fn ($value) => self::productLabel(Product::query()->find($value)))
                 ->visible(fn (Get $get) => $get('soort') !== InkoopfactuurRegel::SOORT_KOSTEN)
+                ->dehydrateStateUsing(fn ($state, Get $get) => $get('soort') === InkoopfactuurRegel::SOORT_KOSTEN ? null : $state)
                 ->afterStateUpdated(fn (Set $set, $state) => $set('koppeling', $state ? InkoopfactuurRegel::KOPPELING_HANDMATIG : null))
                 ->live()
                 ->hint(fn (Get $get) => self::regelStatus($get('koppeling'), $get('toegepast_at')))
@@ -228,8 +231,14 @@ class InkoopfactuurResource extends Resource
     }
 
     /** Stuurt het geüploade bestand naar Claude en zet de gevonden velden en regels in het formulier. */
-    public static function leesUit(Get $get, Set $set): void
+    public static function leesUit(Get $get, Set $set, ?Inkoopfactuur $record = null): void
     {
+        if ($record?->isToegepast()) {
+            Notification::make()->danger()->title('Deze factuur is al toegepast')->body('Maak een nieuwe factuur aan om opnieuw uit te lezen.')->send();
+
+            return;
+        }
+
         $bestand = $get('bestand');
         $bestand = is_array($bestand) ? (array_values($bestand)[0] ?? null) : $bestand;
         $lezer = app(InkoopfactuurLezer::class);

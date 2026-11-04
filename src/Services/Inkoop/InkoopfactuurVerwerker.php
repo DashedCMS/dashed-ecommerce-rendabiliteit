@@ -61,7 +61,10 @@ class InkoopfactuurVerwerker
                 ->get(['id', 'vat_rate'])
                 ->keyBy('id');
 
-            $btw = fn (InkoopfactuurRegel $regel) => (float) ($producten->get($regel->product_id)?->vat_rate ?: self::STANDAARD_BTW);
+            // Een product met 0% btw blijft 0%; alleen zonder tarief (of bij kosten) geldt 21%.
+            $btw = fn (InkoopfactuurRegel $regel) => $regel->isKosten()
+                ? self::STANDAARD_BTW
+                : (float) ($producten->get($regel->product_id)?->vat_rate ?? self::STANDAARD_BTW);
             $netto = fn (InkoopfactuurRegel $regel) => self::nettoStuksprijs($regel->stuksprijs, $regel->korting, $factuur->prijzen_incl_btw, $btw($regel));
 
             $productregels = $regels->reject(fn (InkoopfactuurRegel $r) => $r->isKosten())->values();

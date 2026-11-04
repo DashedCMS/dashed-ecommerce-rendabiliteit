@@ -6,6 +6,7 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Dashed\DashedEcommerceRendabiliteit\Models\InkoopfactuurRegel;
 use Dashed\DashedEcommerceRendabiliteit\Services\Inkoop\InkoopfactuurKoppelaar;
 use Dashed\DashedEcommerceRendabiliteit\Services\Inkoop\InkoopfactuurVerwerker;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\Inkoopfacturen\InkoopfactuurResource;
@@ -35,10 +36,14 @@ class EditInkoopfactuur extends EditRecord
                 ->modalDescription('Elk gekoppeld product krijgt de prijs per stuk excl. btw als inkoopprijs. Een regel die al is toegepast, wordt niet opnieuw toegepast.')
                 ->action(function () {
                     $this->save(shouldRedirect: false, shouldSendSavedNotification: false);
+                    $alToegepast = $this->record->regels()->where('soort', InkoopfactuurRegel::SOORT_PRODUCT)->whereNotNull('toegepast_at')->count();
                     $bijgewerkt = app(InkoopfactuurVerwerker::class)->pasToe($this->record);
                     $this->herlaad();
 
-                    Notification::make()->success()->title("Inkoopprijs van {$bijgewerkt} producten bijgewerkt")->send();
+                    Notification::make()->success()
+                        ->title("Inkoopprijs van {$bijgewerkt} producten bijgewerkt")
+                        ->body($alToegepast ? "{$alToegepast} regels waren al toegepast en zijn overgeslagen." : null)
+                        ->send();
                 }),
             InkoopfactuurResource::downloadActie(),
             DeleteAction::make(),

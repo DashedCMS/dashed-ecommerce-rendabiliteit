@@ -51,6 +51,17 @@ class InkoopfactuurRegel extends Model
         'toegepast_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        // Een kostenregel hoort nooit bij een product (anders telt zijn btw-tarief mee).
+        static::saving(function (self $regel) {
+            if ($regel->isKosten()) {
+                $regel->product_id = null;
+                $regel->koppeling = null;
+            }
+        });
+    }
+
     public function factuur(): BelongsTo
     {
         return $this->belongsTo(Inkoopfactuur::class, 'inkoopfactuur_id');
