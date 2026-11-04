@@ -235,7 +235,7 @@ class RendabiliteitPdf
 
     public function bestandsnaam(array $gegevens): string
     {
-        return 'lovora-rendabiliteit-'.$gegevens['bestand'].'.pdf';
+        return (config('dashed-ecommerce-rendabiliteit.bestandsprefix') ?: \Illuminate\Support\Str::slug(config('app.name'))).'-rendabiliteit-'.$gegevens['bestand'].'.pdf';
     }
 
     /**

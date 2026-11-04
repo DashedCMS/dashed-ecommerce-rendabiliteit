@@ -6,7 +6,7 @@ use Dashed\DashedCore\Models\Customsetting;
 
 /**
  * Instellingen voor marges en adviesprijzen. Leest zonder de statische
- * Customsetting-cache; de sleutels zijn die van de oorspronkelijke opzet in Lovora.
+ * Customsetting-cache; de sleutels zijn die van de oorspronkelijke opzet.
  */
 class MargeInstellingen
 {

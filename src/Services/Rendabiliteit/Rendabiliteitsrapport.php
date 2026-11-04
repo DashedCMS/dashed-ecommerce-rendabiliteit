@@ -13,19 +13,24 @@ use Dashed\DashedEcommerceRendabiliteit\Models\VasteLast;
 /**
  * Bouwt en cachet het rendabiliteitsrapport per maand: omzet en kosten uit
  * OrderKostenBerekenaar, plus advertenties, vaste lasten, winst en break-even.
- * Cache per maand op sleutel 'rendabiliteit:s<schema>:v<versie>:<Y-m>'; RendabiliteitCache::wis()
+ * Cache per maand op sleutel 'dashed-ecommerce-rendabiliteit.rapport:s<schema>:v<versie>:<Y-m>'; RendabiliteitCache::wis()
  * maakt alle maanden ongeldig door de versie te verhogen.
  */
 class Rendabiliteitsrapport
 {
-    /** Ophogen bij elke vormwijziging van MaandRapport of andere berekening (5: perMarketingkanaal, 6: advertentiesDetail zonder 'bron', 7: audit 29-09: betaalde proforma, betaalmethode via id, order-wijzigen-ketens, 8: hele keten terug en kassaproforma met verzendmethode geschat, 9: Etsy-commissie op de order, 10: geen schatting meer voor orders zonder label, 11: verkochte cadeaubonnen geen omzet, bonbetalingen zonder betaalkosten), zodat oude gecachete objecten niet meer gelezen worden. */
-    public const CACHE_SCHEMA = 11;
+    /** Ophogen bij elke vormwijziging van MaandRapport of andere berekening (5: perMarketingkanaal, 6: advertentiesDetail zonder 'bron', 7: audit 29-09: betaalde proforma, betaalmethode via id, order-wijzigen-ketens, 8: hele keten terug en kassaproforma met verzendmethode geschat, 9: Etsy-commissie op de order, 10: geen schatting meer voor orders zonder label, 11: verkochte cadeaubonnen geen omzet, bonbetalingen zonder betaalkosten, 12: verhuisd naar dashed-ecommerce-rendabiliteit met nieuwe cacheprefix), zodat oude gecachete objecten niet meer gelezen worden. */
+    public const CACHE_SCHEMA = 12;
 
     private const VELDEN = ['omzet', 'kostprijs', 'verpakking', 'verzending', 'betaalkosten', 'commissie', 'marge'];
 
+    public static function cacheSleutel(CarbonInterface $maand): string
+    {
+        return 'dashed-ecommerce-rendabiliteit.rapport:s'.self::CACHE_SCHEMA.':v'.RendabiliteitCache::versie().':'.$maand->format('Y-m');
+    }
+
     public function maand(CarbonInterface $maand): MaandRapport
     {
-        $sleutel = 'rendabiliteit:s'.self::CACHE_SCHEMA.':v'.RendabiliteitCache::versie().':'.$maand->format('Y-m');
+        $sleutel = self::cacheSleutel($maand);
         $ttl = $maand->copy()->startOfMonth()->gte(Carbon::now()->startOfMonth()) ? 600 : 86400;
 
         return Cache::remember($sleutel, $ttl, fn () => $this->bouw($maand));

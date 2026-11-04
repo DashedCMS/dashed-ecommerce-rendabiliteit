@@ -205,7 +205,7 @@ class AdvertentieDashboard
     /** Dag van de eerste order: vroeger valt er niets te rekenen. */
     public static function eersteOrderdag(): ?CarbonInterface
     {
-        $eerste = Cache::remember('advertentie-dashboard:eerste-orderdag', now()->addDay(), fn () => Order::min('created_at'));
+        $eerste = Cache::remember('dashed-ecommerce-rendabiliteit.advertentiedashboard:eerste-orderdag', now()->addDay(), fn () => Order::min('created_at'));
 
         return $eerste ? Carbon::parse($eerste)->startOfDay() : null;
     }
@@ -358,7 +358,7 @@ class AdvertentieDashboard
 
     private function maand(CarbonInterface $maand): array
     {
-        $sleutel = 'advertentiedashboard:s'.self::CACHE_SCHEMA.':v'.RendabiliteitCache::versie().':'.$maand->format('Y-m');
+        $sleutel = 'dashed-ecommerce-rendabiliteit.advertentiedashboard:s'.self::CACHE_SCHEMA.':v'.RendabiliteitCache::versie().':'.$maand->format('Y-m');
         $ttl = $maand->copy()->startOfMonth()->gte(Carbon::now()->startOfMonth()) ? 600 : 86400;
 
         return Cache::remember($sleutel, $ttl, fn () => $this->bouwMaand($maand));

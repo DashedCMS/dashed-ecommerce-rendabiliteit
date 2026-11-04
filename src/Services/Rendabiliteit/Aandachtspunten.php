@@ -68,7 +68,7 @@ class Aandachtspunten
         // Een bijgewerkte kostprijs (inkoopprijs op het product) verandert blok 2 zonder dat de
         // rapportversie ophoogt. Net als de doelmarge (instelling zonder cache-wis).
         $profielen = DB::table('dashed__products')->max('updated_at').'|'.DB::table('dashed__products')->count();
-        $sleutel = 'rendabiliteit:aandachtspunten:s'.self::CACHE_SCHEMA.':r'.Rendabiliteitsrapport::CACHE_SCHEMA
+        $sleutel = 'dashed-ecommerce-rendabiliteit.aandachtspunten:s'.self::CACHE_SCHEMA.':r'.Rendabiliteitsrapport::CACHE_SCHEMA
             .':v'.RendabiliteitCache::versie().':'.$van->format('Y-m').':'.$tot->format('Y-m')
             .':'.md5($profielen.'|'.MargeInstellingen::doelmarge());
         $ttl = $tot->gte(Carbon::now()->startOfMonth()) ? 600 : 86400;

@@ -14,4 +14,7 @@ return [
 
     /* Bearer-token van de advertentie-API (/api/advertentie-uitgaven); leeg = API dicht. */
     'api_token' => env('ADVERTENTIE_API_TOKEN'),
+
+    /* Voorvoegsel van de PDF-bestandsnaam; leeg = de slug van app.name. */
+    'bestandsprefix' => null,
 ];

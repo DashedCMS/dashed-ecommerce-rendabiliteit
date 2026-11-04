@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Cache;
 /** Versienummer in de cachesleutels van het rapport; wis() maakt alle maanden ongeldig. */
 class RendabiliteitCache
 {
-    private const SLEUTEL = 'rendabiliteit:versie';
+    private const SLEUTEL = 'dashed-ecommerce-rendabiliteit.versie';
 
     public static function versie(): int
     {
