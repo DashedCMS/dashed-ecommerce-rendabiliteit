@@ -37,8 +37,9 @@ ADVERTENTIE_API_TOKEN=
 
 Config (`config/dashed-ecommerce-rendabiliteit.php`): `vervoerders`, `api_token`, `bestandsprefix`.
 
-De migratie maakt de tabellen aan als ze er nog niet zijn en vult bij een nieuwe tarieventabel startwaarden
-(`Startwaarden::TARIEVEN`). Controleer of die bij jouw shop passen; alle tarieven zijn te wijzigen onder Rendabiliteit → Tarieven.
+De migratie maakt de tabellen aan als ze er nog niet zijn en vult geen tarieven: vul betaal-, verzend- en verpakkingskosten in
+onder Rendabiliteit → Tarieven (zonder tarief rekent het rapport met €0 en toont een waarschuwing).
+`Startwaarden::zet()` is alleen een hulpklasse (o.a. voor tests) en wordt niet automatisch aangeroepen.
 
 ## Standaardgedrag
 

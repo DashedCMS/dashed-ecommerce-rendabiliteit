@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
-use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Startwaarden;
 
 /**
  * Alle tabellen van het rendabiliteitsrapport. Elke tabel alleen als hij nog
@@ -12,8 +11,6 @@ use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Startwaarden;
 return new class () extends Migration {
     public function up(): void
     {
-        $nieuweTarieven = false;
-
         if (! Schema::hasTable('kostentarieven')) {
             Schema::create('kostentarieven', function (Blueprint $table) {
                 $table->id();
@@ -25,7 +22,6 @@ return new class () extends Migration {
                 $table->timestamps();
                 $table->unique(['soort', 'sleutel', 'geldig_vanaf']);
             });
-            $nieuweTarieven = true;
         }
 
         if (! Schema::hasTable('vaste_lasten')) {
@@ -91,10 +87,6 @@ return new class () extends Migration {
                 $table->dateTime('berekend_op');
                 $table->timestamps();
             });
-        }
-
-        if ($nieuweTarieven) {
-            Startwaarden::zet();
         }
     }
 
