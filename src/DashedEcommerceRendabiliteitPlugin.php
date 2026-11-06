@@ -7,6 +7,7 @@ use Filament\Contracts\Plugin;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Kostprijzen\MargesPage;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Rendabiliteit\AdvertentiesPage;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Rendabiliteit\RendabiliteitPage;
+use Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Rendabiliteit\AdvertentieKoppelingenPage;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\VasteLasten\VasteLastResource;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\Kostentarieven\KostentariefResource;
 use Dashed\DashedEcommerceRendabiliteit\Filament\Resources\Inkoopfacturen\InkoopfactuurResource;
@@ -28,6 +29,7 @@ class DashedEcommerceRendabiliteitPlugin implements Plugin
             ->pages([
                 RendabiliteitPage::class,
                 AdvertentiesPage::class,
+                AdvertentieKoppelingenPage::class,
                 MargesPage::class,
             ])
             ->resources([

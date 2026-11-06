@@ -19,11 +19,11 @@ class AdvertentieApiOpslag
      * @param  list<array{datum: string, platform: string, bedrag: float|int|string}>  $regels
      * @return array{nieuw: int, bijgewerkt: int, gelijk: int}
      */
-    public function sla(array $regels): array
+    public function sla(array $regels, string $bron = self::BRON): array
     {
         $telling = ['nieuw' => 0, 'bijgewerkt' => 0, 'gelijk' => 0];
 
-        DB::transaction(function () use ($regels, &$telling) {
+        DB::transaction(function () use ($regels, $bron, &$telling) {
             foreach ($regels as $regel) {
                 $platform = AdvertentiePlatformen::normaliseer($regel['platform']);
                 $bedrag = round((float) $regel['bedrag'], 2);
@@ -38,20 +38,20 @@ class AdvertentieApiOpslag
                         'datum' => $regel['datum'],
                         'platform' => $platform,
                         'bedrag' => $bedrag,
-                        'bron' => self::BRON,
+                        'bron' => $bron,
                     ]))->saveQuietly();
                     $telling['nieuw']++;
 
                     continue;
                 }
 
-                if (abs((float) $bestaand->bedrag - $bedrag) < 0.005 && $bestaand->bron === self::BRON) {
+                if (abs((float) $bestaand->bedrag - $bedrag) < 0.005 && $bestaand->bron === $bron) {
                     $telling['gelijk']++;
 
                     continue;
                 }
 
-                $bestaand->fill(['bedrag' => $bedrag, 'bron' => self::BRON])->saveQuietly();
+                $bestaand->fill(['bedrag' => $bedrag, 'bron' => $bron])->saveQuietly();
                 $telling['bijgewerkt']++;
             }
         });

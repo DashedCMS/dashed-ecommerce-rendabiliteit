@@ -35,7 +35,19 @@ ADVERTENTIE_API_TOKEN=
 `POST /api/advertentie-uitgaven` met `{"rows": [{"datum": "2026-10-29", "platform": "meta", "bedrag": 24.10}]}` en
 `GET /api/advertentie-uitgaven?van=&tot=`, met `Authorization: Bearer <token>`.
 
-Config (`config/dashed-ecommerce-rendabiliteit.php`): `vervoerders`, `api_token`, `bestandsprefix`, `inkoopfacturen` (standaard `true`; `false` registreert de Inkoopfacturen-resource niet, voor shops waar de kostprijs niet uit `purchase_price` komt).
+## Advertentiekoppelingen
+
+Rendabiliteit → Advertentiekoppelingen: per platform de inloggegevens (geheimen versleuteld, nooit teruggetoond) en een schakelaar. Standaard uit.
+
+- Meta: token van een systeemgebruiker met `ads_read` en het advertentieaccount-ID.
+- Google Ads: klant-ID, OAuth client-ID en secret, refresh token (scope `adwords`), developer token en zo nodig het manageraccount-ID.
+- Bol: client credentials voor de Advertising API (niet die van de Retailer API). Bol levert hoogstens 30 dagen terug, met één verzoek per dag.
+
+`rendabiliteit:haal-advertenties [--van=] [--tot=] [--platform=meta|google|bol]` draait elke nacht om 05:20 over de afgelopen 7 volle dagen, omdat platforms recente dagen nog corrigeren. Een dag zonder uitgaven wordt € 0, een regel met bron `handmatig` blijft staan en andere regels worden overschreven (bron `koppeling`). Een account dat niet in euro rekent wordt geweigerd. API-versies: `koppelingen` in de config; Google stopt een versie na ± 1 jaar.
+
+De nachtelijke taken lopen via de scheduler van de shop: `rendabiliteit:vul-orderregel-kostprijzen` om 03:50 en de koppelingen om 05:20.
+
+Config (`config/dashed-ecommerce-rendabiliteit.php`): `vervoerders`, `api_token`, `koppelingen`, `bestandsprefix`, `inkoopfacturen` (standaard `true`; `false` registreert de Inkoopfacturen-resource niet, voor shops waar de kostprijs niet uit `purchase_price` komt).
 
 De migratie maakt de tabellen aan als ze er nog niet zijn en vult geen tarieven: vul betaal-, verzend- en verpakkingskosten in
 onder Rendabiliteit → Tarieven (zonder tarief rekent het rapport met €0 en toont een waarschuwing).

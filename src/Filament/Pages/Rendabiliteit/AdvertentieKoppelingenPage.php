@@ -1,0 +1,192 @@
+<?php
+
+namespace Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Rendabiliteit;
+
+use UnitEnum;
+use BackedEnum;
+use Carbon\Carbon;
+use Filament\Pages\Page;
+use Filament\Actions\Action;
+use Filament\Schemas\Schema;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Section;
+use Filament\Forms\Components\Placeholder;
+use Filament\Schemas\Contracts\HasSchemas;
+use Filament\Schemas\Concerns\InteractsWithSchemas;
+use Dashed\DashedEcommerceRendabiliteit\Instellingen\KoppelingInstellingen;
+use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Koppelingen\AdvertentieKoppelingen;
+
+/** Inloggegevens van Meta, Google en Bol, de laatste stand en "Nu ophalen". */
+class AdvertentieKoppelingenPage extends Page implements HasSchemas
+{
+    use InteractsWithSchemas;
+
+    private const WAARDEN = ['meta_account', 'google_client_id', 'google_customer_id', 'google_login_customer_id', 'bol_client_id'];
+
+    private const GEHEIMEN = ['meta_token', 'google_client_secret', 'google_refresh_token', 'google_developer_token', 'bol_client_secret'];
+
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrow-path';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Rendabiliteit';
+
+    protected static ?string $navigationLabel = 'Advertentiekoppelingen';
+
+    protected static ?string $title = 'Advertentiekoppelingen';
+
+    protected static ?string $slug = 'rendabiliteit/advertentie-koppelingen';
+
+    protected static ?int $navigationSort = 25;
+
+    protected string $view = 'dashed-core::settings.pages.default-settings';
+
+    public array $data = [];
+
+    public static function canAccess(): bool
+    {
+        return auth()->check() && auth()->user()->can('view_statistics');
+    }
+
+    public function mount(): void
+    {
+        $data = [];
+
+        foreach ([KoppelingInstellingen::META, KoppelingInstellingen::GOOGLE, KoppelingInstellingen::BOL] as $koppeling) {
+            $data["{$koppeling}_aan"] = KoppelingInstellingen::aan($koppeling);
+        }
+
+        foreach (self::WAARDEN as $veld) {
+            $data[$veld] = KoppelingInstellingen::waarde($veld);
+        }
+
+        // Geheimen nooit terugtonen; leeg laten betekent ongewijzigd.
+        foreach (self::GEHEIMEN as $veld) {
+            $data[$veld] = '';
+        }
+
+        $this->form->fill($data);
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('ophalen')
+                ->label('Nu ophalen (7 dagen)')
+                ->icon('heroicon-o-arrow-path')
+                ->action(fn () => $this->haalOp()),
+        ];
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema->statePath('data')->schema([
+            Section::make('Meta')
+                ->description('Business Manager → Systeemgebruikers: token met ads_read op het advertentieaccount.')
+                ->schema([
+                    Toggle::make('meta_aan')->label('Elke nacht ophalen'),
+                    TextInput::make('meta_account')->label('Advertentieaccount-ID')->helperText('Bijvoorbeeld act_1234567890.'),
+                    $this->geheimVeld('meta_token', 'Toegangstoken'),
+                    $this->standVeld(KoppelingInstellingen::META),
+                ]),
+            Section::make('Google Ads')
+                ->description('Google Cloud: OAuth-client met scope adwords en een refresh token. De developer token staat in het API-centrum van een Ads-manageraccount.')
+                ->schema([
+                    Toggle::make('google_aan')->label('Elke nacht ophalen'),
+                    TextInput::make('google_customer_id')->label('Klant-ID')->helperText('Het account met de campagnes, bijvoorbeeld 123-456-7890.'),
+                    TextInput::make('google_login_customer_id')->label('Manageraccount-ID')->helperText('Alleen als je via een manageraccount toegang hebt.'),
+                    TextInput::make('google_client_id')->label('OAuth client-ID'),
+                    $this->geheimVeld('google_client_secret', 'OAuth client secret'),
+                    $this->geheimVeld('google_refresh_token', 'Refresh token'),
+                    $this->geheimVeld('google_developer_token', 'Developer token'),
+                    $this->standVeld(KoppelingInstellingen::GOOGLE),
+                ]),
+            Section::make('Bol')
+                ->description('Partnerplatform → Client credentials voor de Advertising API (niet die van de Retailer API). Bol levert hoogstens 30 dagen terug.')
+                ->schema([
+                    Toggle::make('bol_aan')->label('Elke nacht ophalen'),
+                    TextInput::make('bol_client_id')->label('Advertiser-ID'),
+                    $this->geheimVeld('bol_client_secret', 'Advertiser secret'),
+                    $this->standVeld(KoppelingInstellingen::BOL),
+                ]),
+        ]);
+    }
+
+    public function submit(): void
+    {
+        $this->bewaar();
+
+        Notification::make()->title('De koppelingen zijn opgeslagen')->success()->send();
+    }
+
+    public function haalOp(): void
+    {
+        $this->bewaar();
+
+        $uitkomst = app(AdvertentieKoppelingen::class)->haalOp();
+
+        if ($uitkomst === []) {
+            Notification::make()->title('Geen koppeling aan of volledig ingevuld')->warning()->send();
+
+            return;
+        }
+
+        foreach ($uitkomst as $platform => $stand) {
+            $melding = Notification::make()->title($platform);
+
+            $stand['gelukt']
+                ? $melding->body("{$stand['dagen']} dagen, € ".number_format($stand['totaal'], 2, ',', '.'))->success()
+                : $melding->body($stand['fout'])->danger()->persistent();
+
+            $melding->send();
+        }
+
+        $this->redirect(static::getUrl());
+    }
+
+    private function bewaar(): void
+    {
+        $data = $this->form->getState();
+
+        foreach ([KoppelingInstellingen::META, KoppelingInstellingen::GOOGLE, KoppelingInstellingen::BOL] as $koppeling) {
+            KoppelingInstellingen::zetAan($koppeling, (bool) ($data["{$koppeling}_aan"] ?? false));
+        }
+
+        foreach (self::WAARDEN as $veld) {
+            KoppelingInstellingen::zetWaarde($veld, $data[$veld] ?? null);
+        }
+
+        foreach (self::GEHEIMEN as $veld) {
+            KoppelingInstellingen::zetGeheim($veld, $data[$veld] ?? null);
+        }
+    }
+
+    private function geheimVeld(string $veld, string $label): TextInput
+    {
+        return TextInput::make($veld)
+            ->label($label)
+            ->password()
+            ->revealable()
+            ->autocomplete('new-password')
+            ->helperText(fn () => KoppelingInstellingen::geheim($veld) !== null ? 'Opgeslagen. Leeg laten houdt het ongewijzigd.' : null);
+    }
+
+    private function standVeld(string $koppeling): Placeholder
+    {
+        return Placeholder::make("{$koppeling}_stand")
+            ->label('Laatste keer')
+            ->content(function () use ($koppeling) {
+                $stand = KoppelingInstellingen::stand($koppeling);
+
+                if (! $stand) {
+                    return 'Nog niet opgehaald.';
+                }
+
+                $moment = Carbon::parse($stand['at'])->timezone(config('app.timezone'))->format('d-m-Y H:i');
+
+                return $stand['gelukt']
+                    ? "{$moment}: {$stand['dagen']} dagen, € ".number_format($stand['totaal'], 2, ',', '.')
+                    : "{$moment}: mislukt. {$stand['fout']}";
+            });
+    }
+}

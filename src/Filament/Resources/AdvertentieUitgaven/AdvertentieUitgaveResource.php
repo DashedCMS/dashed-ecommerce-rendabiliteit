@@ -132,7 +132,7 @@ class AdvertentieUitgaveResource extends Resource
                     ),
                 TextColumn::make('bron')->label('Bron')->badge()
                     ->formatStateUsing(fn (?string $state) => match ($state) {
-                        'handmatig' => 'Handmatig', 'api' => 'API', default => 'Import'
+                        'handmatig' => 'Handmatig', 'api' => 'API', 'koppeling' => 'Koppeling', default => 'Import'
                     })
                     ->color(fn (?string $state) => $state === 'handmatig' ? 'gray' : 'info'),
             ])

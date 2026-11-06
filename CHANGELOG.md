@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.1.0
+
+- Advertentiekoppelingen: Meta, Google Ads en Bol halen elke nacht de uitgaven per dag op (`rendabiliteit:haal-advertenties`, pagina Rendabiliteit → Advertentiekoppelingen). Staan standaard uit.
+- `rendabiliteit:vul-orderregel-kostprijzen` draait elke nacht, zodat orderregels een kostprijs krijgen zodra een product later een inkoopprijs krijgt.
+
 ## v4.0.0
 
 - Eerste release: rendabiliteit uit Lovora als Composer-package.

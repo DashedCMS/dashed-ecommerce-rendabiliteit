@@ -15,6 +15,12 @@ return [
     /* Bearer-token van de advertentie-API (/api/advertentie-uitgaven); leeg = API dicht. */
     'api_token' => env('ADVERTENTIE_API_TOKEN'),
 
+    /* API-versies van de advertentiekoppelingen; Google stopt een versie na ± 1 jaar. */
+    'koppelingen' => [
+        'meta_versie' => env('RENDABILITEIT_META_API_VERSIE', 'v27.0'),
+        'google_versie' => env('RENDABILITEIT_GOOGLE_API_VERSIE', 'v26'),
+    ],
+
     /* Inkoopfacturen-resource registreren; false voor shops waar de kostprijs niet uit purchase_price komt. */
     'inkoopfacturen' => true,
 
