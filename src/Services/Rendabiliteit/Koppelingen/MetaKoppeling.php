@@ -14,6 +14,12 @@ class MetaKoppeling implements AdvertentieKoppeling
 
     private const MAX_PAGINAS = 50;
 
+    /** Meta bewaart insights 37 maanden. */
+    private const MAANDEN_TERUG = 37;
+
+    /** Lange periodes in blokken, anders weigert Meta met "reduce the amount of data". */
+    private const DAGEN_PER_BLOK = 90;
+
     public function sleutel(): string
     {
         return KoppelingInstellingen::META;
@@ -31,10 +37,23 @@ class MetaKoppeling implements AdvertentieKoppeling
 
     public function vroegsteDag(): ?CarbonImmutable
     {
-        return null;
+        return CarbonImmutable::today()->subMonths(self::MAANDEN_TERUG)->addDay();
     }
 
     public function uitgaven(CarbonImmutable $van, CarbonImmutable $tot): array
+    {
+        $uitgaven = [];
+
+        for ($begin = $van; $begin->lte($tot); $begin = $begin->addDays(self::DAGEN_PER_BLOK)) {
+            $eind = $begin->addDays(self::DAGEN_PER_BLOK - 1)->min($tot);
+            $uitgaven += $this->blok($begin, $eind);
+        }
+
+        return $uitgaven;
+    }
+
+    /** @return array<string, float> */
+    private function blok(CarbonImmutable $van, CarbonImmutable $tot): array
     {
         $versie = config('dashed-ecommerce-rendabiliteit.koppelingen.meta_versie');
         $url = "https://graph.facebook.com/{$versie}/act_{$this->account()}/insights";

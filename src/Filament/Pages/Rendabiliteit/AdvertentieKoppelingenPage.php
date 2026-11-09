@@ -6,17 +6,21 @@ use UnitEnum;
 use BackedEnum;
 use Carbon\Carbon;
 use Filament\Pages\Page;
+use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Schemas\Schema;
 use Illuminate\Support\HtmlString;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Section;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Dashed\DashedEcommerceRendabiliteit\Instellingen\KoppelingInstellingen;
+use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\AdvertentieDashboard;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Koppelingen\KoppelingPrompt;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Koppelingen\AdvertentieKoppelingen;
 
@@ -77,6 +81,23 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
                 ->label('Nu ophalen (7 dagen)')
                 ->icon('heroicon-o-arrow-path')
                 ->action(fn () => $this->haalOp()),
+            Action::make('geschiedenis')
+                ->label('Geschiedenis ophalen')
+                ->icon('heroicon-o-clock')
+                ->color('gray')
+                ->modalDescription('Haalt alle dagen vanaf de startdatum tot en met gisteren op en vervangt geschatte of geïmporteerde bedragen; handmatige regels blijven staan. Meta gaat hoogstens 37 maanden terug, Bol 30 dagen, Google onbeperkt. Alleen koppelingen met "Elke nacht ophalen" aan. Kan een paar minuten duren.')
+                ->schema([
+                    DatePicker::make('van')
+                        ->label('Vanaf')
+                        ->required()
+                        ->maxDate(now()->subDay())
+                        ->default(fn () => (AdvertentieDashboard::eersteOrderdag() ?? now()->subYear())->toDateString()),
+                    Select::make('platform')
+                        ->label('Kanaal')
+                        ->placeholder('Alle kanalen')
+                        ->options([KoppelingInstellingen::META => 'Meta', KoppelingInstellingen::GOOGLE => 'Google Ads', KoppelingInstellingen::BOL => 'Bol']),
+                ])
+                ->action(fn (array $data) => $this->haalOp(CarbonImmutable::parse($data['van'])->startOfDay(), $data['platform'] ?? null)),
         ];
     }
 
@@ -127,11 +148,15 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
         Notification::make()->title('De koppelingen zijn opgeslagen')->success()->send();
     }
 
-    public function haalOp(): void
+    public function haalOp(?CarbonImmutable $van = null, ?string $platform = null): void
     {
         $this->bewaar();
 
-        $uitkomst = app(AdvertentieKoppelingen::class)->haalOp();
+        if ($van !== null) {
+            @set_time_limit(900);
+        }
+
+        $uitkomst = app(AdvertentieKoppelingen::class)->haalOp($van, null, $platform);
 
         if ($uitkomst === []) {
             Notification::make()->title('Geen koppeling aan of volledig ingevuld')->warning()->send();

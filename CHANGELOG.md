@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.4.0
+
+- Advertentiekoppelingen: actie "Geschiedenis ophalen" (startdatum, standaard de eerste order; optioneel één kanaal). Meta gaat hoogstens 37 maanden terug en haalt lange periodes op in blokken van 90 dagen; Bol blijft op 30 dagen, Google onbeperkt. Ook via `rendabiliteit:haal-advertenties --van=`.
+
 ## v4.3.1
 
 - Bol-koppeling: de Advertising API weigerde `Accept: application/json` met een 406. Nu worden vendor-types op volgorde geprobeerd (`vnd.advertiser.v11`, `vnd.retailer.v11`, `vnd.advertiser.v10`, `json`) en wordt de werkende onthouden; vast te zetten met `RENDABILITEIT_BOL_ACCEPT`.
