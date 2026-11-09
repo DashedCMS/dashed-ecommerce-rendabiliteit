@@ -57,6 +57,65 @@ class AdvertentieKoppelingen
         return $uitkomst;
     }
 
+    /**
+     * Test de inloggegevens van één koppeling: vraagt gisteren op, ook als ophalen uit staat,
+     * en slaat niets op.
+     *
+     * @return array{gelukt: bool, melding: string}
+     */
+    public function controleer(string $sleutel): array
+    {
+        $koppeling = collect($this->alle())->first(fn (AdvertentieKoppeling $k) => $k->sleutel() === $sleutel);
+
+        if (! $koppeling) {
+            return ['gelukt' => false, 'melding' => 'Onbekende koppeling.'];
+        }
+
+        $leeg = self::lege($sleutel);
+
+        if (! $koppeling->isIngesteld() || $leeg !== []) {
+            return ['gelukt' => false, 'melding' => 'Nog niet ingevuld: '.implode(', ', $leeg ?: ['verplichte velden']).'.'];
+        }
+
+        $gisteren = CarbonImmutable::yesterday();
+
+        try {
+            $uitgaven = $koppeling->uitgaven($gisteren, $gisteren);
+        } catch (KoppelingFout $fout) {
+            return ['gelukt' => false, 'melding' => $fout->getMessage()];
+        } catch (Throwable $fout) {
+            report($fout);
+
+            return ['gelukt' => false, 'melding' => 'Onverwachte fout: '.$fout->getMessage()];
+        }
+
+        $bedrag = number_format(round(array_sum($uitgaven), 2), 2, ',', '.');
+        $nacht = KoppelingInstellingen::aan($sleutel) ? '' : ' Let op: "Elke nacht ophalen" staat nog uit.';
+
+        return ['gelukt' => true, 'melding' => "De verbinding werkt. Uitgaven gisteren ({$gisteren->format('d-m-Y')}): € {$bedrag}.{$nacht}"];
+    }
+
+    /** Verplichte velden die nog leeg zijn (labels). @return list<string> */
+    public static function lege(string $sleutel): array
+    {
+        $optioneel = ['google_login_customer_id'];
+        $leeg = [];
+
+        foreach (KoppelingPrompt::VELDEN[$sleutel] ?? [] as $veld => [$label, $geheim]) {
+            if (in_array($veld, $optioneel, true)) {
+                continue;
+            }
+
+            $waarde = $geheim ? KoppelingInstellingen::geheim($veld) : KoppelingInstellingen::waarde($veld);
+
+            if ($waarde === null) {
+                $leeg[] = $label;
+            }
+        }
+
+        return $leeg;
+    }
+
     /** @return array{gelukt: bool, fout: ?string, dagen: int, totaal: float} */
     private function verwerk(AdvertentieKoppeling $koppeling, CarbonImmutable $van, CarbonImmutable $tot): array
     {

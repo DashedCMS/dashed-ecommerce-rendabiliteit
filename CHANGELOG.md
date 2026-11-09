@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.3.0
+
+- Advertentiekoppelingen: knop "Controleer verbinding" per kanaal. Bewaart het formulier, vraagt gisteren op (ook als nachtelijk ophalen uit staat) en meldt het bedrag of de fout; er wordt niets opgeslagen. `AdvertentieKoppelingen::controleer()` en `lege()`. De AI-prompt verwijst ernaar.
+
 ## v4.2.0
 
 - Advertentiekoppelingen: per kanaal een kopieerbare prompt voor Claude in Chrome met de huidige stand (welke velden leeg zijn, laatste fout) en de stappen om de inloggegevens te regelen en in te vullen. Geheimen staan er nooit in.

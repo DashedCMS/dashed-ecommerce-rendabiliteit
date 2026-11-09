@@ -64,8 +64,8 @@ class KoppelingPrompt
         $regels[] = 'Wat ik wil:';
         $regels[] = '1. Zoek uit wat er mis is of ontbreekt (kijk naar de foutmelding hierboven als die er is).';
         $regels[] = "2. Regel de ontbrekende of foute gegevens bij {$naam}, volgens de stappen hieronder.";
-        $regels[] = '3. Vul ze in op de koppelingenpagina, zet "Elke nacht ophalen" aan, klik op Opslaan en daarna op "Nu ophalen (7 dagen)".';
-        $regels[] = '4. Lukt het, controleer dan dat "Laatste keer" een bedrag toont. Mislukt het, lees de melding en los dat op.';
+        $regels[] = "3. Vul ze in op de koppelingenpagina en klik in de sectie \"{$naam}\" op \"Controleer verbinding\". Die test de gegevens zonder iets op te slaan.";
+        $regels[] = '4. Werkt het niet, lees de melding, los het op en controleer opnieuw. Werkt het wel, zet "Elke nacht ophalen" aan, klik op Opslaan en daarna op "Nu ophalen (7 dagen)".';
         $regels[] = '';
         $regels[] = "Stappen bij {$naam}:";
 

@@ -84,6 +84,7 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
     {
         return $schema->statePath('data')->schema([
             Section::make('Meta')
+                ->headerActions([$this->controleerActie(KoppelingInstellingen::META)])
                 ->description('Business Manager → Systeemgebruikers: token met ads_read op het advertentieaccount.')
                 ->schema([
                     Toggle::make('meta_aan')->label('Elke nacht ophalen'),
@@ -93,6 +94,7 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
                     $this->promptVeld(KoppelingInstellingen::META),
                 ]),
             Section::make('Google Ads')
+                ->headerActions([$this->controleerActie(KoppelingInstellingen::GOOGLE)])
                 ->description('Google Cloud: OAuth-client met scope adwords en een refresh token. De developer token staat in het API-centrum van een Ads-manageraccount.')
                 ->schema([
                     Toggle::make('google_aan')->label('Elke nacht ophalen'),
@@ -106,6 +108,7 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
                     $this->promptVeld(KoppelingInstellingen::GOOGLE),
                 ]),
             Section::make('Bol')
+                ->headerActions([$this->controleerActie(KoppelingInstellingen::BOL)])
                 ->description('Partnerplatform → Client credentials voor de Advertising API (niet die van de Retailer API). Bol levert hoogstens 30 dagen terug.')
                 ->schema([
                     Toggle::make('bol_aan')->label('Elke nacht ophalen'),
@@ -174,6 +177,25 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
             ->revealable()
             ->autocomplete('new-password')
             ->helperText(fn () => KoppelingInstellingen::geheim($veld) !== null ? 'Opgeslagen. Leeg laten houdt het ongewijzigd.' : null);
+    }
+
+    private function controleerActie(string $koppeling): Action
+    {
+        return Action::make("controleer_{$koppeling}")
+            ->label('Controleer verbinding')
+            ->icon('heroicon-o-signal')
+            ->color('gray')
+            ->size('sm')
+            ->action(function () use ($koppeling) {
+                // Eerst bewaren, zodat net ingevulde gegevens meetellen.
+                $this->bewaar();
+
+                $uitkomst = app(AdvertentieKoppelingen::class)->controleer($koppeling);
+                $melding = Notification::make()->title($uitkomst['gelukt'] ? 'Verbinding werkt' : 'Verbinding werkt niet')->body($uitkomst['melding']);
+
+                $uitkomst['gelukt'] ? $melding->success() : $melding->danger()->persistent();
+                $melding->send();
+            });
     }
 
     private function promptVeld(string $koppeling): Placeholder
