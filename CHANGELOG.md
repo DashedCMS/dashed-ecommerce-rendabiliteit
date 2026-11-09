@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.6.0
+
+- Rapport gebruikt de volle schermbreedte.
+- Rapport: nieuw blok "Verloop" met een eigen periode (van/tot op de dag) en per dag, week of maand: advertenties (waarvan geschat), omzet, orders, marge, marge %, vaste lasten, winst en MER. Alle kanalen en platformen zoals het maandrapport; vaste lasten gelijk over de dagen van de maand verdeeld, zodat een volle maand optelt tot het rapport (`RapportReeks`, per maand gecachet met de rapportversie).
+
 ## v4.5.0
 
 - Google Ads: knop "Koppel met Google" haalt de refresh token op via OAuth in het systeem zelf (routes `rendabiliteit.google.koppelen` en `.terug`, alleen met `view_statistics`); de omleidings-URI voor de OAuth-client staat op de pagina. De developer token is niet meer verplicht voor "Controleer verbinding", zodat Google zelf meldt of hij nodig is.

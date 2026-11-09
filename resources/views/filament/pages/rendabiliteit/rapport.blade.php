@@ -403,6 +403,88 @@
         </table>
     </div>
 
+    <?php
+        $reeks = $this->reeks;
+        $reeksTotaal = \Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\RapportReeks::totaal($reeks);
+        $reeksPer = $this->reeksGroepering;
+        $reeksProcent = fn (?float $p) => $p === null ? '—' : $procent($p);
+    ?>
+    <div class="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+        <div class="flex flex-wrap items-end gap-4">
+            <p class="mr-auto font-medium">Verloop: advertenties, omzet, marge en winst</p>
+            <label class="grid gap-1 text-sm">
+                <span class="font-medium">Van</span>
+                <input type="date" wire:model.live="reeksVan" class="fi-input rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-700">
+            </label>
+            <label class="grid gap-1 text-sm">
+                <span class="font-medium">Tot en met</span>
+                <input type="date" wire:model.live="reeksTot" class="fi-input rounded-lg border-gray-300 dark:bg-gray-900 dark:border-gray-700">
+            </label>
+            <div class="flex overflow-hidden rounded-lg border border-gray-300 text-sm dark:border-gray-700">
+                @foreach(\Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\RapportReeks::PER as $sleutel => $label)
+                    <button type="button" wire:click="$set('reeksPer', '{{ $sleutel }}')" @class([
+                        'px-3 py-2',
+                        'bg-primary-600 text-white' => $reeksPer === $sleutel,
+                        'hover:bg-gray-50 dark:hover:bg-gray-800' => $reeksPer !== $sleutel,
+                    ])>{{ $label }}</button>
+                @endforeach
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-right dark:bg-gray-800">
+                    <tr>
+                        <th class="{{ $th }} text-left">{{ ['dag' => 'Dag', 'week' => 'Week', 'maand' => 'Maand'][$reeksPer] }}</th>
+                        <th class="{{ $th }}">Advertenties{!! $ex !!}</th>
+                        <th class="{{ $th }}">Omzet{!! $ex !!}</th>
+                        <th class="{{ $th }}">Orders</th>
+                        <th class="{{ $th }}">Marge{!! $ex !!}</th>
+                        <th class="{{ $th }}">Marge %</th>
+                        <th class="{{ $th }}">Vaste lasten{!! $ex !!}</th>
+                        <th class="{{ $th }}">Winst{!! $ex !!}</th>
+                        <th class="{{ $th }}">MER</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach(array_reverse($reeks) as $rij)
+                        <tr wire:key="reeks-{{ $reeksPer }}-{{ $rij['van'] }}" class="border-t border-gray-100 dark:border-gray-800">
+                            <td class="px-3 py-2 whitespace-nowrap text-left">{{ $rij['label'] }}</td>
+                            <td class="{{ $td }}">
+                                {{ $geld($rij['advertenties']) }}
+                                @if($rij['geschat'] > 0)
+                                    <span class="block text-xs text-gray-500">(waarvan {{ $geld($rij['geschat']) }} geschat)</span>
+                                @endif
+                            </td>
+                            <td class="{{ $td }}">{{ $geld($rij['omzet']) }}</td>
+                            <td class="{{ $td }}">{{ $rij['orders'] }}</td>
+                            <td class="{{ $td }}">{{ $geld($rij['marge']) }}</td>
+                            <td class="{{ $td }}">{{ $reeksProcent($rij['margePercentage']) }}</td>
+                            <td class="{{ $td }}">{{ $geld($rij['vasteLasten']) }}</td>
+                            <td @class([$td, 'font-medium', 'text-danger-600 dark:text-danger-400' => $rij['winst'] < 0, 'text-success-600 dark:text-success-400' => $rij['winst'] > 0])>{{ $geld($rij['winst']) }}</td>
+                            <td class="{{ $td }}">{{ $rij['advertenties'] > 0 ? $roas($rij['omzet'] / $rij['advertenties']) : '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot class="border-t-2 border-gray-200 font-medium dark:border-gray-700">
+                    <tr>
+                        <td class="px-3 py-2 text-left">Totaal</td>
+                        <td class="{{ $td }}">{{ $geld($reeksTotaal['advertenties']) }}</td>
+                        <td class="{{ $td }}">{{ $geld($reeksTotaal['omzet']) }}</td>
+                        <td class="{{ $td }}">{{ $reeksTotaal['orders'] }}</td>
+                        <td class="{{ $td }}">{{ $geld($reeksTotaal['marge']) }}</td>
+                        <td class="{{ $td }}">{{ $reeksProcent($reeksTotaal['margePercentage']) }}</td>
+                        <td class="{{ $td }}">{{ $geld($reeksTotaal['vasteLasten']) }}</td>
+                        <td @class([$td, 'text-danger-600 dark:text-danger-400' => $reeksTotaal['winst'] < 0])>{{ $geld($reeksTotaal['winst']) }}</td>
+                        <td class="{{ $td }}">{{ $reeksTotaal['advertenties'] > 0 ? $roas($reeksTotaal['omzet'] / $reeksTotaal['advertenties']) : '—' }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <p class="text-xs text-gray-500">
+            Alle kanalen en alle advertentieplatformen, zoals de maandtabel hierboven, nieuwste bovenaan. Winst = marge min advertenties min vaste lasten; vaste lasten van een maand zijn gelijk over de dagen van die maand verdeeld. MER = omzet ÷ advertenties.
+        </p>
+    </div>
+
     <div class="rounded-xl border border-gray-200 bg-white p-4 text-sm dark:border-gray-800 dark:bg-gray-900">
         <p class="mb-2 font-medium">Break-even</p>
         <dl class="grid gap-1 sm:grid-cols-2">

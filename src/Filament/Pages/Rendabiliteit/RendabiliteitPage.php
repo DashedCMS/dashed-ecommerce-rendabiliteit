@@ -17,6 +17,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Utilities\Get;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\MaandRapport;
+use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\RapportReeks;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\PeriodeTotaal;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Aandachtspunten;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Pdf\RendabiliteitPdf;
@@ -49,6 +50,9 @@ class RendabiliteitPage extends Page
 
     protected string $view = 'dashed-ecommerce-rendabiliteit::filament.pages.rendabiliteit.rapport';
 
+    /** Brede tabel: de pagina gebruikt de volle schermbreedte. */
+    protected Width|string|null $maxContentWidth = Width::Full;
+
     /** 'Y-m' */
     public string $van = '';
 
@@ -60,11 +64,93 @@ class RendabiliteitPage extends Page
         return auth()->check() && auth()->user()->can('view_statistics');
     }
 
+    /** Verloop per dag/week/maand: 'Y-m-d' */
+    public string $reeksVan = '';
+
+    /** 'Y-m-d' */
+    public string $reeksTot = '';
+
+    /** dag, week of maand; leeg = automatisch op de lengte van de periode */
+    public string $reeksPer = '';
+
     public function mount(): void
     {
         [$van, $tot] = self::standaardPeriode();
         $this->van = $van->format('Y-m');
         $this->tot = $tot->format('Y-m');
+        $this->zetReeksOpPeriode();
+    }
+
+    /** Het verloop volgt de maandkeuze bovenaan, tot iemand er zelf andere data in zet. */
+    public function updatedVan(): void
+    {
+        $this->zetReeksOpPeriode();
+    }
+
+    public function updatedTot(): void
+    {
+        $this->zetReeksOpPeriode();
+    }
+
+    private function zetReeksOpPeriode(): void
+    {
+        [$van, $tot] = $this->periode;
+        $this->reeksVan = $van->copy()->startOfMonth()->toDateString();
+        $this->reeksTot = $tot->copy()->endOfMonth()->min(now()->startOfDay())->max($van->copy()->startOfMonth())->toDateString();
+        $this->reeksPer = '';
+    }
+
+    /**
+     * Periode van het verloop; onzin, omgekeerd of te lang valt terug op de maandkeuze.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public function getReeksPeriodeProperty(): array
+    {
+        $van = self::parseDatum($this->reeksVan);
+        $tot = self::parseDatum($this->reeksTot);
+
+        if ($van === null || $tot === null || $van->gt($tot) || $van->diffInDays($tot) >= RapportReeks::MAX_DAGEN) {
+            [$maandVan, $maandTot] = $this->periode;
+
+            return [$maandVan->copy()->startOfMonth(), $maandTot->copy()->endOfMonth()->startOfDay()];
+        }
+
+        return [$van, $tot];
+    }
+
+    public function getReeksGroeperingProperty(): string
+    {
+        if (array_key_exists($this->reeksPer, RapportReeks::PER)) {
+            return $this->reeksPer;
+        }
+
+        [$van, $tot] = $this->reeksPeriode;
+
+        return RapportReeks::standaardPer($van, $tot);
+    }
+
+    /** @return list<array> zie RapportReeks::reeks() */
+    public function getReeksProperty(): array
+    {
+        [$van, $tot] = $this->reeksPeriode;
+
+        return app(RapportReeks::class)->reeks($van, $tot, $this->reeksGroepering);
+    }
+
+    private static function parseDatum(string $waarde): ?Carbon
+    {
+        if (! preg_match('/^20\d{2}-\d{2}-\d{2}$/', $waarde)) {
+            return null;
+        }
+
+        try {
+            $datum = Carbon::createFromFormat('!Y-m-d', $waarde);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
+
+        return $datum && $datum->toDateString() === $waarde ? $datum : null;
     }
 
     /**
