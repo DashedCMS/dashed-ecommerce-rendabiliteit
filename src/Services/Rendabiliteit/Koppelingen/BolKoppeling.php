@@ -18,6 +18,19 @@ class BolKoppeling implements AdvertentieKoppeling
 
     private const DAGEN_TERUG = 30;
 
+    /**
+     * Bol eist een vendor-type als Accept (een 406 noemt alleen het patroon) en documenteert niet
+     * welk voor de Advertising API; we proberen ze op volgorde en onthouden wat werkt.
+     */
+    public const ACCEPT_KANDIDATEN = [
+        'application/vnd.advertiser.v11+json',
+        'application/vnd.retailer.v11+json',
+        'application/vnd.advertiser.v10+json',
+        'application/json',
+    ];
+
+    private ?string $accept = null;
+
     private ?string $token = null;
 
     private int $tokenTot = 0;
@@ -48,19 +61,45 @@ class BolKoppeling implements AdvertentieKoppeling
         $uitgaven = [];
 
         for ($dag = $van; $dag->lte($tot); $dag = $dag->addDay()) {
-            $antwoord = $this->verzoek(fn () => Http::timeout(30)
-                ->retry(3, 5000, fn ($fout) => $fout instanceof RequestException && $fout->response->status() === 429, throw: false)
-                ->withToken($this->toegangstoken())
-                ->acceptJson()
-                ->get('https://api.bol.com/advertiser/sponsored-products/reporting/performance/advertiser', [
-                    'period-start-date' => $dag->toDateString(),
-                    'period-end-date' => $dag->toDateString(),
-                ]));
+            $antwoord = $this->rapport($dag);
 
             $uitgaven[$dag->toDateString()] = (float) ($antwoord->json('cost') ?? 0);
         }
 
         return $uitgaven;
+    }
+
+    private function rapport(CarbonImmutable $dag): Response
+    {
+        $kandidaten = $this->accept !== null
+            ? [$this->accept]
+            : (array_values(array_filter([config('dashed-ecommerce-rendabiliteit.koppelingen.bol_accept')])) ?: self::ACCEPT_KANDIDATEN);
+
+        foreach ($kandidaten as $i => $accept) {
+            try {
+                $antwoord = $this->verzoek(fn () => Http::timeout(30)
+                    ->retry(3, 5000, fn ($fout) => $fout instanceof RequestException && $fout->response->status() === 429, throw: false)
+                    ->withToken($this->toegangstoken())
+                    ->accept($accept)
+                    ->get('https://api.bol.com/advertiser/sponsored-products/reporting/performance/advertiser', [
+                        'period-start-date' => $dag->toDateString(),
+                        'period-end-date' => $dag->toDateString(),
+                    ]));
+            } catch (KoppelingFout $fout) {
+                // Alleen een geweigerde Accept-header (406) is reden om de volgende te proberen.
+                if (! str_contains($fout->getMessage(), 'status 406') || $i === count($kandidaten) - 1) {
+                    throw $fout;
+                }
+
+                continue;
+            }
+
+            $this->accept = $accept;
+
+            return $antwoord;
+        }
+
+        throw new KoppelingFout('Bol accepteerde geen enkele Accept-header.');
     }
 
     /** Bol staat weinig tokenverzoeken toe, dus hergebruiken tot vlak voor het verlopen. */

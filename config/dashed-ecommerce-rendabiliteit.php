@@ -19,6 +19,8 @@ return [
     'koppelingen' => [
         'meta_versie' => env('RENDABILITEIT_META_API_VERSIE', 'v27.0'),
         'google_versie' => env('RENDABILITEIT_GOOGLE_API_VERSIE', 'v26'),
+        /* Accept-header voor de Bol Advertising API; leeg = de kandidaten om de beurt proberen (Bol documenteert hem niet). */
+        'bol_accept' => env('RENDABILITEIT_BOL_ACCEPT'),
     ],
 
     /* Inkoopfacturen-resource registreren; false voor shops waar de kostprijs niet uit purchase_price komt. */

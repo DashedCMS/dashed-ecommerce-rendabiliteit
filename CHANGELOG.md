@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.3.1
+
+- Bol-koppeling: de Advertising API weigerde `Accept: application/json` met een 406. Nu worden vendor-types op volgorde geprobeerd (`vnd.advertiser.v11`, `vnd.retailer.v11`, `vnd.advertiser.v10`, `json`) en wordt de werkende onthouden; vast te zetten met `RENDABILITEIT_BOL_ACCEPT`.
+
 ## v4.3.0
 
 - Advertentiekoppelingen: knop "Controleer verbinding" per kanaal. Bewaart het formulier, vraagt gisteren op (ook als nachtelijk ophalen uit staat) en meldt het bedrag of de fout; er wordt niets opgeslagen. `AdvertentieKoppelingen::controleer()` en `lege()`. De AI-prompt verwijst ernaar.
