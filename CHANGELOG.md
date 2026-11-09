@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.2.0
+
+- Advertentiekoppelingen: per kanaal een kopieerbare prompt voor Claude in Chrome met de huidige stand (welke velden leeg zijn, laatste fout) en de stappen om de inloggegevens te regelen en in te vullen. Geheimen staan er nooit in.
+
 ## v4.1.0
 
 - Advertentiekoppelingen: Meta, Google Ads en Bol halen elke nacht de uitgaven per dag op (`rendabiliteit:haal-advertenties`, pagina Rendabiliteit → Advertentiekoppelingen). Staan standaard uit.

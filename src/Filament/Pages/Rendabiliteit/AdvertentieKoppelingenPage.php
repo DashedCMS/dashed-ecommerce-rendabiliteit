@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Filament\Pages\Page;
 use Filament\Actions\Action;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -16,6 +17,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Dashed\DashedEcommerceRendabiliteit\Instellingen\KoppelingInstellingen;
+use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Koppelingen\KoppelingPrompt;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Koppelingen\AdvertentieKoppelingen;
 
 /** Inloggegevens van Meta, Google en Bol, de laatste stand en "Nu ophalen". */
@@ -88,6 +90,7 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
                     TextInput::make('meta_account')->label('Advertentieaccount-ID')->helperText('Bijvoorbeeld act_1234567890.'),
                     $this->geheimVeld('meta_token', 'Toegangstoken'),
                     $this->standVeld(KoppelingInstellingen::META),
+                    $this->promptVeld(KoppelingInstellingen::META),
                 ]),
             Section::make('Google Ads')
                 ->description('Google Cloud: OAuth-client met scope adwords en een refresh token. De developer token staat in het API-centrum van een Ads-manageraccount.')
@@ -100,6 +103,7 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
                     $this->geheimVeld('google_refresh_token', 'Refresh token'),
                     $this->geheimVeld('google_developer_token', 'Developer token'),
                     $this->standVeld(KoppelingInstellingen::GOOGLE),
+                    $this->promptVeld(KoppelingInstellingen::GOOGLE),
                 ]),
             Section::make('Bol')
                 ->description('Partnerplatform → Client credentials voor de Advertising API (niet die van de Retailer API). Bol levert hoogstens 30 dagen terug.')
@@ -108,6 +112,7 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
                     TextInput::make('bol_client_id')->label('Advertiser-ID'),
                     $this->geheimVeld('bol_client_secret', 'Advertiser secret'),
                     $this->standVeld(KoppelingInstellingen::BOL),
+                    $this->promptVeld(KoppelingInstellingen::BOL),
                 ]),
         ]);
     }
@@ -169,6 +174,31 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
             ->revealable()
             ->autocomplete('new-password')
             ->helperText(fn () => KoppelingInstellingen::geheim($veld) !== null ? 'Opgeslagen. Leeg laten houdt het ongewijzigd.' : null);
+    }
+
+    private function promptVeld(string $koppeling): Placeholder
+    {
+        return Placeholder::make("{$koppeling}_prompt")
+            ->label('Laten fixen met AI in Chrome')
+            ->content(function () use ($koppeling) {
+                $ingevuld = [];
+
+                foreach (KoppelingPrompt::VELDEN[$koppeling] as $veld => [, $geheim]) {
+                    $ingevuld[$veld] = $geheim
+                        ? KoppelingInstellingen::geheim($veld) !== null
+                        : KoppelingInstellingen::waarde($veld) !== null;
+                }
+
+                $prompt = KoppelingPrompt::voor(
+                    $koppeling,
+                    static::getUrl(),
+                    $ingevuld,
+                    KoppelingInstellingen::stand($koppeling),
+                    KoppelingInstellingen::aan($koppeling),
+                );
+
+                return new HtmlString(view('dashed-ecommerce-rendabiliteit::koppelingen.prompt', ['prompt' => $prompt])->render());
+            });
     }
 
     private function standVeld(string $koppeling): Placeholder
