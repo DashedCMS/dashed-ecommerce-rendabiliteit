@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.5.0
+
+- Google Ads: knop "Koppel met Google" haalt de refresh token op via OAuth in het systeem zelf (routes `rendabiliteit.google.koppelen` en `.terug`, alleen met `view_statistics`); de omleidings-URI voor de OAuth-client staat op de pagina. De developer token is niet meer verplicht voor "Controleer verbinding", zodat Google zelf meldt of hij nodig is.
+
 ## v4.4.0
 
 - Advertentiekoppelingen: actie "Geschiedenis ophalen" (startdatum, standaard de eerste order; optioneel één kanaal). Meta gaat hoogstens 37 maanden terug en haalt lange periodes op in blokken van 90 dagen; Bol blijft op 30 dagen, Google onbeperkt. Ook via `rendabiliteit:haal-advertenties --van=`.

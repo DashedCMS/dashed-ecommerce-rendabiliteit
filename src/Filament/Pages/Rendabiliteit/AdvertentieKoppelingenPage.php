@@ -20,6 +20,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Dashed\DashedEcommerceRendabiliteit\Instellingen\KoppelingInstellingen;
+use Dashed\DashedEcommerceRendabiliteit\Http\Controllers\GoogleKoppelingController;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\AdvertentieDashboard;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Koppelingen\KoppelingPrompt;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Koppelingen\AdvertentieKoppelingen;
@@ -72,6 +73,12 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
         }
 
         $this->form->fill($data);
+
+        if ($terug = session()->pull('rendabiliteit.google_koppeling')) {
+            $melding = Notification::make()->title('Google')->body($terug['melding']);
+            $terug['gelukt'] ? $melding->success() : $melding->danger()->persistent();
+            $melding->send();
+        }
     }
 
     protected function getHeaderActions(): array
@@ -115,15 +122,28 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
                     $this->promptVeld(KoppelingInstellingen::META),
                 ]),
             Section::make('Google Ads')
-                ->headerActions([$this->controleerActie(KoppelingInstellingen::GOOGLE)])
+                ->headerActions([
+                    Action::make('koppel_google')
+                        ->label('Koppel met Google')
+                        ->icon('heroicon-o-link')
+                        ->size('sm')
+                        ->tooltip('Haalt de refresh token op door in te loggen bij Google. Vul eerst client-ID en secret in.')
+                        ->action(function () {
+                            $this->bewaar();
+                            $this->redirect(route('rendabiliteit.google.koppelen'));
+                        }),
+                    $this->controleerActie(KoppelingInstellingen::GOOGLE),
+                ])
                 ->description('Google Cloud: OAuth-client met scope adwords en een refresh token. De developer token staat in het API-centrum van een Ads-manageraccount.')
                 ->schema([
                     Toggle::make('google_aan')->label('Elke nacht ophalen'),
                     TextInput::make('google_customer_id')->label('Klant-ID')->helperText('Het account met de campagnes, bijvoorbeeld 123-456-7890.'),
                     TextInput::make('google_login_customer_id')->label('Manageraccount-ID')->helperText('Alleen als je via een manageraccount toegang hebt.'),
-                    TextInput::make('google_client_id')->label('OAuth client-ID'),
+                    TextInput::make('google_client_id')->label('OAuth client-ID')
+                        ->helperText(fn () => new HtmlString('OAuth-client van het type "Webapplicatie". Zet bij Geautoriseerde omleidings-URI\'s: <code style="user-select: all;">'.e(GoogleKoppelingController::terugUrl()).'</code>')),
                     $this->geheimVeld('google_client_secret', 'OAuth client secret'),
-                    $this->geheimVeld('google_refresh_token', 'Refresh token'),
+                    $this->geheimVeld('google_refresh_token', 'Refresh token')
+                        ->hint('Of klik op "Koppel met Google".'),
                     $this->geheimVeld('google_developer_token', 'Developer token'),
                     $this->standVeld(KoppelingInstellingen::GOOGLE),
                     $this->promptVeld(KoppelingInstellingen::GOOGLE),

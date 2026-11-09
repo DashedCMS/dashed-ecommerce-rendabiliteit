@@ -38,7 +38,7 @@ class DashedEcommerceRendabiliteitServiceProvider extends PackageServiceProvider
             ->name(static::$name)
             ->hasConfigFile()
             ->hasViews()
-            ->hasRoute('api')
+            ->hasRoutes(['api', 'web'])
             ->hasCommands([
                 VulOrderregelKostprijzen::class,
                 HaalAdvertenties::class,

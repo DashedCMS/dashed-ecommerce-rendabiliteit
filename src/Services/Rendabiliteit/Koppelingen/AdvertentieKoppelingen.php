@@ -98,7 +98,8 @@ class AdvertentieKoppelingen
     /** Verplichte velden die nog leeg zijn (labels). @return list<string> */
     public static function lege(string $sleutel): array
     {
-        $optioneel = ['google_login_customer_id'];
+        // Developer token: niet afdwingen, dan meldt Google zelf of hij nodig is.
+        $optioneel = ['google_login_customer_id', 'google_developer_token'];
         $leeg = [];
 
         foreach (KoppelingPrompt::VELDEN[$sleutel] ?? [] as $veld => [$label, $geheim]) {
