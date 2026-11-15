@@ -1,5 +1,9 @@
 # Changelog
 
+## v4.6.1
+
+- Advertenties-pagina: de widgets worden als Livewire-component geregistreerd. Ze staan bewust niet in het panel, waardoor elk update-verzoek de component niet vond en een 419 gaf ("Er is een fout opgetreden", lege tegels).
+
 ## v4.6.0
 
 - Rapport gebruikt de volle schermbreedte.
