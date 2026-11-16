@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.7.0 - 2026-11-16
+
+### Added
+- Het taakcentrum (het tabje Bezig) toont nu het ophalen van advertentie-uitgaven en -geschiedenis en het aanvullen van kostprijzen op orderregels, met voortgang.
+
 ## v4.6.1
 
 - Advertenties-pagina: de widgets worden als Livewire-component geregistreerd. Ze staan bewust niet in het panel, waardoor elk update-verzoek de component niet vond en een 419 gaf ("Er is een fout opgetreden", lege tegels).

@@ -5,6 +5,7 @@ namespace Dashed\DashedEcommerceRendabiliteit\Commands;
 use Throwable;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use Dashed\DashedEcommerceRendabiliteit\Support\AdvertentieTaak;
 use Dashed\DashedEcommerceRendabiliteit\Services\Rendabiliteit\Koppelingen\AdvertentieKoppelingen;
 
 /** Haalt de advertentie-uitgaven op van de ingestelde koppelingen (Meta, Google, Bol). */
@@ -34,13 +35,26 @@ class HaalAdvertenties extends Command
             return self::INVALID;
         }
 
-        $uitkomst = $koppelingen->haalOp($van, $tot, $this->option('platform') ?: null);
+        $platform = $this->option('platform') ?: null;
+
+        // In het takenicoon van dashed-core, een stap per koppeling; zonder koppeling geen regel.
+        $taak = AdvertentieTaak::begin('rendabiliteit-advertenties', __('Advertentie-uitgaven ophalen'), count($koppelingen->actief($platform)));
+
+        try {
+            $uitkomst = $koppelingen->haalOp($van, $tot, $platform, fn () => $taak?->advance());
+        } catch (Throwable $e) {
+            $taak?->fail($e);
+
+            throw $e;
+        }
 
         if ($uitkomst === []) {
             $this->info('Geen koppeling aan of ingevuld.');
 
             return self::SUCCESS;
         }
+
+        AdvertentieTaak::sluit($taak, $uitkomst);
 
         foreach ($uitkomst as $platform => $stand) {
             $stand['gelukt']

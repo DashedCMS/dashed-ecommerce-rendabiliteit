@@ -3,6 +3,7 @@
 namespace Dashed\DashedEcommerceRendabiliteit\Filament\Pages\Rendabiliteit;
 
 use UnitEnum;
+use Throwable;
 use BackedEnum;
 use Carbon\Carbon;
 use Filament\Pages\Page;
@@ -10,6 +11,7 @@ use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Schemas\Schema;
 use Illuminate\Support\HtmlString;
+use Dashed\DashedEcommerceRendabiliteit\Support\AdvertentieTaak;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\TextInput;
@@ -176,13 +178,30 @@ class AdvertentieKoppelingenPage extends Page implements HasSchemas
             @set_time_limit(900);
         }
 
-        $uitkomst = app(AdvertentieKoppelingen::class)->haalOp($van, null, $platform);
+        $koppelingen = app(AdvertentieKoppelingen::class);
+
+        // De geschiedenis kan minuten duren: in het takenicoon van dashed-core,
+        // een stap per koppeling, zodat ook een collega ziet dat het loopt.
+        // Zonder melding in de bel, de meldingen hieronder blijven de uitkomst.
+        $taak = $van !== null
+            ? AdvertentieTaak::begin('rendabiliteit-advertenties-geschiedenis', __('Advertentiegeschiedenis ophalen'), count($koppelingen->actief($platform)), auth()->user())
+            : null;
+
+        try {
+            $uitkomst = $koppelingen->haalOp($van, null, $platform, fn () => $taak?->advance());
+        } catch (Throwable $e) {
+            $taak?->fail($e);
+
+            throw $e;
+        }
 
         if ($uitkomst === []) {
             Notification::make()->title('Geen koppeling aan of volledig ingevuld')->warning()->send();
 
             return;
         }
+
+        AdvertentieTaak::sluit($taak, $uitkomst, rescue(fn () => static::getUrl(), null, report: false), __('Koppelingen bekijken'));
 
         foreach ($uitkomst as $platform => $stand) {
             $melding = Notification::make()->title($platform);

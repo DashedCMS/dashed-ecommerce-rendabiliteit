@@ -54,14 +54,49 @@ class OrderregelKostprijsVastlegger
         return true;
     }
 
-    /** Vult regels zonder kostprijs aan; met $opnieuw ook de al aangevulde regels. */
-    public function vulAan(bool $opnieuw = false, bool $dryRun = false): int
+    /**
+     * Vult regels zonder kostprijs aan; met $opnieuw ook de al aangevulde regels.
+     *
+     * @param  callable(int): void|null  $naPortie  Na elke portie, met het aantal bekeken regels.
+     */
+    public function vulAan(bool $opnieuw = false, bool $dryRun = false, ?callable $naPortie = null): int
     {
         $kostprijsBron = rendabiliteit()->kostprijsBron();
         $aantal = 0;
+
+        $this->teVullen($opnieuw)
+            ->chunkById(500, function ($regels) use ($kostprijsBron, $dryRun, &$aantal, $naPortie) {
+                foreach ($regels as $regel) {
+                    if ($dryRun) {
+                        $aantal++;
+
+                        continue;
+                    }
+
+                    if ($this->legVast($regel, OrderregelKostprijs::BRON_AANGEVULD, $kostprijsBron)) {
+                        $aantal++;
+                    }
+                }
+
+                if ($naPortie) {
+                    $naPortie($regels->count());
+                }
+            });
+
+        return $aantal;
+    }
+
+    /** Hoeveel regels vulAan() zou bekijken. */
+    public function aantalTeVullen(bool $opnieuw = false): int
+    {
+        return $this->teVullen($opnieuw)->count();
+    }
+
+    private function teVullen(bool $opnieuw)
+    {
         $regelId = (new OrderProduct())->getTable().'.id';
 
-        OrderProduct::query()
+        return OrderProduct::query()
             ->whereNotNull('product_id')
             ->where(function ($query) use ($opnieuw, $regelId) {
                 $query->whereNotExists(fn ($sub) => $sub->selectRaw('1')
@@ -74,21 +109,6 @@ class OrderregelKostprijsVastlegger
                         ->whereColumn('orderregel_kostprijzen.order_product_id', $regelId)
                         ->where('bron', OrderregelKostprijs::BRON_AANGEVULD));
                 }
-            })
-            ->chunkById(500, function ($regels) use ($kostprijsBron, $dryRun, &$aantal) {
-                foreach ($regels as $regel) {
-                    if ($dryRun) {
-                        $aantal++;
-
-                        continue;
-                    }
-
-                    if ($this->legVast($regel, OrderregelKostprijs::BRON_AANGEVULD, $kostprijsBron)) {
-                        $aantal++;
-                    }
-                }
             });
-
-        return $aantal;
     }
 }

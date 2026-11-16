@@ -33,28 +33,41 @@ class AdvertentieKoppelingen
     /**
      * Zonder datums: de afgelopen 7 volle dagen, want platforms corrigeren recente dagen nog.
      *
+     * @param  callable(string): void|null  $naKoppeling  Na elke opgehaalde koppeling, met het platform.
      * @return array<string, array{gelukt: bool, fout: ?string, dagen: int, totaal: float}> per platform
      */
-    public function haalOp(?CarbonImmutable $van = null, ?CarbonImmutable $tot = null, ?string $sleutel = null): array
+    public function haalOp(?CarbonImmutable $van = null, ?CarbonImmutable $tot = null, ?string $sleutel = null, ?callable $naKoppeling = null): array
     {
         $tot ??= CarbonImmutable::yesterday();
         $van ??= $tot->subDays(self::STANDAARD_DAGEN - 1);
         $uitkomst = [];
 
-        foreach ($this->alle() as $koppeling) {
-            if ($sleutel !== null && $koppeling->sleutel() !== $sleutel) {
-                continue;
-            }
-
-            if (! KoppelingInstellingen::aan($koppeling->sleutel()) || ! $koppeling->isIngesteld()) {
-                continue;
-            }
-
+        foreach ($this->actief($sleutel) as $koppeling) {
             $uitkomst[$koppeling->platform()] = $this->verwerk($koppeling, $van, $tot);
             KoppelingInstellingen::zetStand($koppeling->sleutel(), ['at' => now()->toIso8601String()] + $uitkomst[$koppeling->platform()]);
+
+            if ($naKoppeling) {
+                $naKoppeling($koppeling->platform());
+            }
         }
 
         return $uitkomst;
+    }
+
+    /**
+     * De koppelingen die haalOp() zou ophalen: aan en ingevuld, eventueel
+     * alleen die ene.
+     *
+     * @return list<AdvertentieKoppeling>
+     */
+    public function actief(?string $sleutel = null): array
+    {
+        return array_values(array_filter(
+            $this->alle(),
+            fn (AdvertentieKoppeling $koppeling) => ($sleutel === null || $koppeling->sleutel() === $sleutel)
+                && KoppelingInstellingen::aan($koppeling->sleutel())
+                && $koppeling->isIngesteld(),
+        ));
     }
 
     /**
